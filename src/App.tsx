@@ -58,12 +58,14 @@ type CommandFinishedEvent = {
 
 type ViewMode = "search" | "installed" | "settings";
 
+const AGENT_OPTIONS = ["claude-code", "codex", "cursor", "windsurf", "copilot", "gemini-cli", "aider", "cline", "roo-code", "continue", "goose", "amp"];
+
 const messages: Record<Language, Record<string, string>> = {
   zh: {
-    search: "搜索", installed: "已安装", settings: "设置", searchPlaceholder: "搜索技能，例如 react、python、analysis...", logs: "日志", checkUpdates: "检查更新", searchCommand: "搜索命令", listCommand: "列表命令", checkCommand: "检查命令", updateCommand: "更新命令", executedCheck: "已执行的检查命令", installedSkills: "已安装技能", updateAll: "全部更新", noInstalled: "还没有安装任何技能，先去搜索页找一个。", appSettings: "应用设置", globalShortcut: "全局快捷键", save: "保存", shortcutHint: "用于全局打开搜索窗口。", globalInstallDefault: "默认全局安装", globalInstallDefaultHint: "默认附带 -g 参数安装技能", updateResult: "检查结果", subSkillDiscovery: "子技能探测命令", installCommand: "安装命令", globalInstall: "全局安装", globalInstallHint: "为所有项目安装", installAll: "安装全部", installAllHint: "包含所有子技能", targetAgents: "目标 Agent", subSkills: "子技能", noSubSkills: "没有可识别的子技能，或当前仓库无法列出子技能。", cancel: "取消", installSkill: "安装技能", installationLog: "安装日志", searchLog: "搜索日志", runningCommand: "当前命令", waitingLogs: "等待日志输出...", searchEmpty: "搜索技能后，结果会在这里展示并可直接安装。", installDone: "安装完成", installDoneBody: "技能已安装并同步", installFailed: "安装失败", installFailedBody: "请查看日志", language: "语言", languageToggle: "中 / EN", source: "来源"
+    search: "搜索", installed: "已安装", settings: "设置", searchPlaceholder: "搜索技能，例如 react、python、analysis...", logs: "日志", checkUpdates: "检查更新", searchCommand: "搜索命令", listCommand: "列表命令", checkCommand: "检查命令", updateCommand: "更新命令", executedCheck: "已执行的检查命令", installedSkills: "已安装技能", updateAll: "全部更新", noInstalled: "还没有安装任何技能，先去搜索页找一个。", appSettings: "应用设置", globalShortcut: "全局快捷键", save: "保存", shortcutHint: "用于全局打开搜索窗口。", globalInstallDefault: "默认全局安装", globalInstallDefaultHint: "默认附带 -g 参数安装技能", updateResult: "检查结果", subSkillDiscovery: "子技能探测命令", installCommand: "安装命令", globalInstall: "全局安装", globalInstallHint: "为所有项目安装", installAll: "安装全部", installAllHint: "包含所有子技能", targetAgents: "目标 Agent", projectInstall: "项目安装", projectInstallHint: "安装到指定项目目录", projectFolder: "项目文件夹", chooseFolder: "选择文件夹", projectFolderPlaceholder: "输入项目路径，或点击选择文件夹", subSkills: "子技能", noSubSkills: "没有可识别的子技能，或当前仓库无法列出子技能。", cancel: "取消", installSkill: "安装技能", installationLog: "安装日志", searchLog: "搜索日志", runningCommand: "当前命令", waitingLogs: "等待日志输出...", searchEmpty: "搜索技能后，结果会在这里展示并可直接安装。", installDone: "安装完成", installDoneBody: "技能已安装并同步", installFailed: "安装失败", installFailedBody: "请查看日志", language: "语言", languageToggle: "中 / EN", source: "来源"
   },
   en: {
-    search: "Search", installed: "Installed", settings: "Settings", searchPlaceholder: "Find skills, for example react, python, analysis...", logs: "Logs", checkUpdates: "Check Updates", searchCommand: "Search Command", listCommand: "List Command", checkCommand: "Check Command", updateCommand: "Update Command", executedCheck: "Executed Check Command", installedSkills: "Installed Skills", updateAll: "Update All", noInstalled: "No skills installed yet. Search for one first.", appSettings: "Application Settings", globalShortcut: "Global Shortcut", save: "Save", shortcutHint: "Used to open the search window globally.", globalInstallDefault: "Default Global Install", globalInstallDefaultHint: "Install skills globally by default with -g", updateResult: "Update Check Result", subSkillDiscovery: "Sub Skill Discovery", installCommand: "Install Command", globalInstall: "Global Install", globalInstallHint: "Install for all projects", installAll: "Install All", installAllHint: "Include all sub-skills", targetAgents: "Target Agents", subSkills: "Sub Skills", noSubSkills: "No recognizable sub-skills were found, or this repo could not list them.", cancel: "Cancel", installSkill: "Install Skill", installationLog: "Installation Log", searchLog: "Search Log", runningCommand: "Running Command", waitingLogs: "Waiting for logs...", searchEmpty: "Search for a skill and results will appear here for direct install.", installDone: "Install Complete", installDoneBody: "Skill installed and synced", installFailed: "Install Failed", installFailedBody: "Check the logs for details", language: "Language", languageToggle: "ZH / En", source: "Source"
+    search: "Search", installed: "Installed", settings: "Settings", searchPlaceholder: "Find skills, for example react, python, analysis...", logs: "Logs", checkUpdates: "Check Updates", searchCommand: "Search Command", listCommand: "List Command", checkCommand: "Check Command", updateCommand: "Update Command", executedCheck: "Executed Check Command", installedSkills: "Installed Skills", updateAll: "Update All", noInstalled: "No skills installed yet. Search for one first.", appSettings: "Application Settings", globalShortcut: "Global Shortcut", save: "Save", shortcutHint: "Used to open the search window globally.", globalInstallDefault: "Default Global Install", globalInstallDefaultHint: "Install skills globally by default with -g", updateResult: "Update Check Result", subSkillDiscovery: "Sub Skill Discovery", installCommand: "Install Command", globalInstall: "Global Install", globalInstallHint: "Install for all projects", installAll: "Install All", installAllHint: "Include all sub-skills", targetAgents: "Target Agents", projectInstall: "Project Install", projectInstallHint: "Install into a specific project folder", projectFolder: "Project Folder", chooseFolder: "Choose Folder", projectFolderPlaceholder: "Enter a project path or choose a folder", subSkills: "Sub Skills", noSubSkills: "No recognizable sub-skills were found, or this repo could not list them.", cancel: "Cancel", installSkill: "Install Skill", installationLog: "Installation Log", searchLog: "Search Log", runningCommand: "Running Command", waitingLogs: "Waiting for logs...", searchEmpty: "Search for a skill and results will appear here for direct install.", installDone: "Install Complete", installDoneBody: "Skill installed and synced", installFailed: "Install Failed", installFailedBody: "Check the logs for details", language: "Language", languageToggle: "ZH / En", source: "Source"
   },
 };
 
@@ -218,6 +220,7 @@ function App() {
   const [subSkills, setSubSkills] = useState<string[]>([]);
   const [config, setConfig] = useState<InstallConfig>({
     isGlobal: true,
+    projectPath: "",
     agents: [],
     skills: [],
     copyMode: false,
@@ -337,7 +340,7 @@ function App() {
   const handleSearchSelect = (skill: SkillResult) => {
     setSelectedSkill(skill);
     setSubSkills([]);
-    setConfig((prev) => ({ ...prev, skills: [], agents: [], allMode: false }));
+    setConfig((prev) => ({ ...prev, skills: [], agents: [], allMode: false, projectPath: prev.projectPath }));
   };
 
   const handleInstall = async () => {
@@ -363,6 +366,7 @@ function App() {
       is_global: config.isGlobal,
       agents: config.agents,
       skills: config.skills,
+      current_dir: config.isGlobal ? null : (config.projectPath.trim() || null),
       copy_mode: config.copyMode,
       full_depth: config.fullDepth,
       all_mode: config.allMode,
@@ -395,6 +399,17 @@ function App() {
     });
     setShowLog(true);
     await invoke("execute_npx_skills_update", { id });
+  };
+
+  const handlePickProjectFolder = async () => {
+    try {
+      const selected = await invoke<string | null>("pick_project_folder");
+      if (selected) {
+        setConfig((prev) => ({ ...prev, projectPath: selected, isGlobal: false }));
+      }
+    } catch (error) {
+      console.error("Failed to pick project folder", error);
+    }
   };
 
   const toggleAgent = (agent: string) => {
@@ -704,7 +719,7 @@ function App() {
                       "p-4 rounded-xl border cursor-pointer transition-all",
                       config.isGlobal ? "border-primary/50 bg-primary/5" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700",
                     )}
-                    onClick={() => setConfig((prev) => ({ ...prev, isGlobal: !prev.isGlobal }))}
+                    onClick={() => setConfig((prev) => ({ ...prev, isGlobal: true }))}
                   >
                     <div className="flex items-center gap-3">
                       <Globe size={20} className={config.isGlobal ? "text-primary" : "text-zinc-500"} />
@@ -717,24 +732,61 @@ function App() {
                   <div
                     className={cn(
                       "p-4 rounded-xl border cursor-pointer transition-all",
-                      config.allMode ? "border-primary/50 bg-primary/5" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700",
+                      !config.isGlobal ? "border-primary/50 bg-primary/5" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700",
                     )}
-                    onClick={() => setConfig((prev) => ({ ...prev, allMode: !prev.allMode, skills: prev.allMode ? prev.skills : [] }))}
+                    onClick={() => setConfig((prev) => ({ ...prev, isGlobal: false }))}
                   >
                     <div className="flex items-center gap-3">
-                      <Layers size={20} className={config.allMode ? "text-primary" : "text-zinc-500"} />
+                      <Layers size={20} className={!config.isGlobal ? "text-primary" : "text-zinc-500"} />
                       <div>
-                        <div className="font-medium text-sm">{t.installAll}</div>
-                        <div className="text-xs text-zinc-500">{t.installAllHint}</div>
+                        <div className="font-medium text-sm">{t.projectInstall}</div>
+                        <div className="text-xs text-zinc-500">{t.projectInstallHint}</div>
                       </div>
                     </div>
                   </div>
                 </div>
 
+                {!config.isGlobal && (
+                  <div className="space-y-3">
+                    <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block">{t.projectFolder}</label>
+                    <div className="flex gap-2">
+                      <input
+                        value={config.projectPath}
+                        onChange={(event) => setConfig((prev) => ({ ...prev, projectPath: event.target.value }))}
+                        placeholder={t.projectFolderPlaceholder}
+                        className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/20 outline-none transition-all"
+                      />
+                      <button
+                        onClick={handlePickProjectFolder}
+                        className="px-4 py-2 rounded-lg border border-zinc-700 bg-zinc-900 text-sm text-zinc-300 hover:border-zinc-600 hover:text-white transition-colors"
+                      >
+                        {t.chooseFolder}
+                      </button>
+                    </div>
+                    <p className="text-xs text-zinc-500">{t.projectInstallHint}</p>
+                  </div>
+                )}
+
+                <div
+                  className={cn(
+                    "p-4 rounded-xl border cursor-pointer transition-all",
+                    config.allMode ? "border-primary/50 bg-primary/5" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700",
+                  )}
+                  onClick={() => setConfig((prev) => ({ ...prev, allMode: !prev.allMode, skills: prev.allMode ? prev.skills : [] }))}
+                >
+                  <div className="flex items-center gap-3">
+                    <Layers size={20} className={config.allMode ? "text-primary" : "text-zinc-500"} />
+                    <div>
+                      <div className="font-medium text-sm">{t.installAll}</div>
+                      <div className="text-xs text-zinc-500">{t.installAllHint}</div>
+                    </div>
+                  </div>
+                </div>
+
                 <div>
-                  <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 block">Target Agents</label>
+                  <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 block">{t.targetAgents}</label>
                   <div className="flex flex-wrap gap-2">
-                    {["claude-code", "cursor", "windsurf", "copilot"].map((agent) => (
+                    {AGENT_OPTIONS.map((agent) => (
                       <button
                         key={agent}
                         onClick={() => toggleAgent(agent)}

@@ -116,7 +116,13 @@ export function buildAddCommand(source: string, config: InstallConfig) {
   }
 
   args.push("-y");
-  return buildSkillsCommand(args);
+  const command = buildSkillsCommand(args);
+
+  if (!config.isGlobal && config.projectPath.trim()) {
+    return `cd ${quoteArg(config.projectPath.trim())} && ${command}`;
+  }
+
+  return command;
 }
 
 export function parseSkillsFindOutput(output: string): SkillResult[] {

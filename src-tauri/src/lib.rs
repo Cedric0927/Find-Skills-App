@@ -151,31 +151,39 @@ fn resolve_executable(name: &str) -> Option<PathBuf> {
     where_output.map(PathBuf::from)
 }
 
-fn command_output(name: &str, args: &[String]) -> Result<std::process::Output, std::io::Error> {
+fn apply_current_dir(command: &mut Command, current_dir: &Option<String>) {
+    if let Some(dir) = current_dir.as_ref().map(|value| value.trim()).filter(|value| !value.is_empty()) {
+        command.current_dir(dir);
+    }
+}
+
+fn command_output(name: &str, args: &[String], current_dir: &Option<String>) -> Result<std::process::Output, std::io::Error> {
     let mut command = if let Some(path) = resolve_executable(name) {
         Command::new(path)
     } else {
         Command::new(name)
     };
+    apply_current_dir(&mut command, current_dir);
     command.args(args).output()
 }
 
-fn command_spawn(name: &str, args: &[String]) -> Result<std::process::Child, std::io::Error> {
+fn command_spawn(name: &str, args: &[String], current_dir: &Option<String>) -> Result<std::process::Child, std::io::Error> {
     let mut command = if let Some(path) = resolve_executable(name) {
         Command::new(path)
     } else {
         Command::new(name)
     };
+    apply_current_dir(&mut command, current_dir);
     command.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
     command.spawn()
 }
 
-fn run_command_output(args: &[String]) -> Result<String, String> {
-    let output = match command_output("npx", args) {
+fn run_command_output(args: &[String], current_dir: &Option<String>) -> Result<String, String> {
+    let output = match command_output("npx", args, current_dir) {
         Ok(output) => output,
         Err(error) if error.kind() == ErrorKind::NotFound => {
             let pnpm_args = build_pnpm_dlx_args(args);
-            command_output("pnpm", &pnpm_args).map_err(|error| {
+            command_output("pnpm", &pnpm_args, current_dir).map_err(|error| {
                 if error.kind() == ErrorKind::NotFound {
                     "无法定位 npx 或 pnpm，可尝试在系统 PATH 中配置或安装 Node.js。".to_string()
                 } else {
@@ -197,12 +205,13 @@ fn run_command_output_with_logs(
     app: &AppHandle,
     id: &str,
     args: &[String],
+    current_dir: &Option<String>,
 ) -> Result<String, String> {
-    let output = match command_output("npx", args) {
+    let output = match command_output("npx", args, current_dir) {
         Ok(output) => output,
         Err(error) if error.kind() == ErrorKind::NotFound => {
             let pnpm_args = build_pnpm_dlx_args(args);
-            command_output("pnpm", &pnpm_args).map_err(|error| {
+            command_output("pnpm", &pnpm_args, current_dir).map_err(|error| {
                 if error.kind() == ErrorKind::NotFound {
                     "无法定位 npx 或 pnpm，可尝试在系统 PATH 中配置或安装 Node.js。".to_string()
                 } else {
@@ -244,13 +253,13 @@ fn emit_finished(app: &AppHandle, id: &str, status: &str, message: Option<String
     );
 }
 
-fn run_command_streaming(app: AppHandle, id: String, args: Vec<String>) -> Result<(), String> {
+fn run_command_streaming(app: AppHandle, id: String, args: Vec<String>, current_dir: Option<String>) -> Result<(), String> {
     thread::spawn(move || {
-        let mut child = match command_spawn("npx", &args) {
+        let mut child = match command_spawn("npx", &args, &current_dir) {
             Ok(child) => child,
             Err(error) if error.kind() == ErrorKind::NotFound => {
                 let pnpm_args = build_pnpm_dlx_args(&args);
-                match command_spawn("pnpm", &pnpm_args) {
+                match command_spawn("pnpm", &pnpm_args, &current_dir) {
                     Ok(child) => child,
                     Err(error) => {
                         let message = if error.kind() == ErrorKind::NotFound {
@@ -323,14 +332,14 @@ fn run_command_streaming(app: AppHandle, id: String, args: Vec<String>) -> Resul
 fn execute_npx_skills_find_with_logs(window: Window, id: String, query: String) -> Result<String, String> {
     let sanitized = sanitize_input(&query);
     let args = vec!["skills".into(), "find".into(), sanitized];
-    run_command_output_with_logs(&window.app_handle(), &id, &args)
+    run_command_output_with_logs(&window.app_handle(), &id, &args, &None)
 }
 
 #[tauri::command]
 fn execute_npx_skills_add_list(source: String) -> Result<String, String> {
     let sanitized = sanitize_input(&source);
     let args = vec!["skills".into(), "add".into(), sanitized, "-l".into()];
-    run_command_output(&args)
+    run_command_output(&args, &None)
 }
 
 #[tauri::command]
@@ -339,13 +348,13 @@ fn execute_npx_skills_list(is_global: bool) -> Result<String, String> {
     if is_global {
         args.push("-g".into());
     }
-    run_command_output(&args)
+    run_command_output(&args, &None)
 }
 
 #[tauri::command]
 fn execute_npx_skills_check() -> Result<String, String> {
     let args = vec!["skills".into(), "check".into()];
-    run_command_output(&args)
+    run_command_output(&args, &None)
 }
 
 #[tauri::command]
@@ -359,6 +368,7 @@ fn execute_npx_skills_add(
     copy_mode: bool,
     full_depth: bool,
     all_mode: bool,
+    current_dir: Option<String>,
 ) -> Result<(), String> {
     let mut args = vec!["skills".into(), "add".into(), sanitize_input(&source)];
 
@@ -404,13 +414,40 @@ fn execute_npx_skills_add(
 
     args.push("-y".into());
 
-    run_command_streaming(window.app_handle().clone(), id, args)
+    run_command_streaming(window.app_handle().clone(), id, args, current_dir)
 }
 
 #[tauri::command]
 fn execute_npx_skills_update(window: Window, id: String) -> Result<(), String> {
     let args = vec!["skills".into(), "update".into()];
-    run_command_streaming(window.app_handle().clone(), id, args)
+    run_command_streaming(window.app_handle().clone(), id, args, None)
+}
+
+
+#[tauri::command]
+fn pick_project_folder() -> Result<Option<String>, String> {
+    let script = r#"Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.ShowNewFolderButton = $true
+if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+  Write-Output $dialog.SelectedPath
+}"#;
+
+    let output = Command::new("powershell")
+        .args(["-NoProfile", "-STA", "-Command", script])
+        .output()
+        .map_err(|error| error.to_string())?;
+
+    if !output.status.success() {
+        return Err(decode_and_strip(&output.stderr));
+    }
+
+    let selected = decode_and_strip(&output.stdout).trim().to_string();
+    if selected.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(selected))
+    }
 }
 
 #[tauri::command]
@@ -482,6 +519,7 @@ pub fn run() {
             execute_npx_skills_check,
             execute_npx_skills_add,
             execute_npx_skills_update,
+            pick_project_folder,
             set_global_shortcut
         ])
         .run(tauri::generate_context!())

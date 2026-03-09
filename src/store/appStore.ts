@@ -25,6 +25,7 @@ export type SkillResult = {
 
 export type InstallConfig = {
   isGlobal: boolean;
+  projectPath: string;
   agents: string[];
   skills: string[];
   copyMode: boolean;
