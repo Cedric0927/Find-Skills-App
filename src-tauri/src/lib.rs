@@ -21,6 +21,17 @@ fn sanitize_input(input: &str) -> String {
         .to_string()
 }
 
+fn sanitize_shortcut_input(input: &str) -> String {
+    input
+        .chars()
+        .filter(|char| {
+            char.is_ascii_alphanumeric() || "+-_ ".contains(*char)
+        })
+        .collect::<String>()
+        .trim()
+        .to_string()
+}
+
 fn strip_ansi(input: &str) -> String {
     let mut result = String::with_capacity(input.len());
     let mut in_escape = false;
@@ -396,31 +407,28 @@ fn execute_npx_skills_add(
         args.push("-g".into());
     }
 
-    if all_mode {
-        args.push("--all".into());
-    } else {
-        if !agents.is_empty() {
-            args.push("-a".into());
-            args.push(
-                agents
-                    .into_iter()
-                    .map(|agent| sanitize_input(&agent))
-                    .filter(|item| !item.is_empty())
-                    .collect::<Vec<String>>()
-                    .join(","),
-            );
-        }
+    let sanitized_agents = agents
+        .into_iter()
+        .map(|agent| sanitize_input(&agent))
+        .filter(|item| !item.is_empty())
+        .collect::<Vec<String>>();
+    for agent in sanitized_agents {
+        args.push("-a".into());
+        args.push(agent);
+    }
 
-        if !skills.is_empty() {
+    if all_mode {
+        args.push("-s".into());
+        args.push("*".into());
+    } else {
+        let sanitized_skills = skills
+            .into_iter()
+            .map(|skill| sanitize_input(&skill))
+            .filter(|item| !item.is_empty())
+            .collect::<Vec<String>>();
+        for skill in sanitized_skills {
             args.push("-s".into());
-            args.push(
-                skills
-                    .into_iter()
-                    .map(|skill| sanitize_input(&skill))
-                    .filter(|item| !item.is_empty())
-                    .collect::<Vec<String>>()
-                    .join(","),
-            );
+            args.push(skill);
         }
     }
 
@@ -477,7 +485,7 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
 fn set_global_shortcut(app: AppHandle, accelerator: String) -> Result<(), String> {
     let global_shortcut = app.global_shortcut();
     let _ = global_shortcut.unregister_all();
-    let sanitized = sanitize_input(&accelerator);
+    let sanitized = sanitize_shortcut_input(&accelerator);
     if sanitized.is_empty() {
         return Ok(());
     }

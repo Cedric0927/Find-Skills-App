@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
@@ -27,12 +27,14 @@ import { twMerge } from "tailwind-merge";
 
 import {
   buildAddCommand,
+  buildAddListCommand,
   formatSkillLabel,
   parseSkillsFindOutput,
   parseSkillsListOutput,
   parseSkillsSubList,
 } from "./lib/skills";
-import { useAppStore, type InstallConfig, type Language, type SkillResult } from "./store/appStore";
+import { useDebouncedValue } from "./hooks/useDebouncedValue";
+import { useAppStore, type Language, type SkillResult } from "./store/appStore";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -69,10 +71,10 @@ const AGENT_CATEGORIES = [
 
 const messages: Record<Language, Record<string, string>> = {
   zh: {
-    search: "搜索", installed: "已安装", settings: "设置", searchPlaceholder: "搜索技能，例如 react、python、analysis...", searchAction: "搜索", checkUpdates: "检查更新", installedSkills: "已安装技能", updateAll: "全部更新", noInstalled: "还没有安装任何技能，先去搜索页找一个。", appSettings: "应用设置", globalShortcut: "全局快捷键", save: "保存", shortcutHint: "用于全局打开搜索窗口。", globalInstallDefault: "默认全局安装", globalInstallDefaultHint: "默认附带 -g 参数安装技能", updateResult: "检查结果", subSkillDiscovery: "子技能探测命令", installCommand: "安装命令", globalInstall: "全局安装", globalInstallHint: "为所有项目安装", installAll: "安装全部", installAllHint: "包含所有子技能", targetAgents: "目标 Agent", projectInstall: "项目安装", projectInstallHint: "安装到指定项目目录", projectFolder: "项目文件夹", chooseFolder: "选择文件夹", projectFolderPlaceholder: "输入项目路径，或点击选择文件夹", subSkills: "子技能", noSubSkills: "没有可识别的子技能，或当前仓库无法列出子技能。", cancel: "取消", installSkill: "安装技能", runningCommand: "当前命令", searchEmpty: "搜索技能后，结果会在这里展示并可直接安装。", installDone: "安装完成", installDoneBody: "技能已安装并同步", installFailed: "安装失败", installFailedBody: "请查看日志", language: "语言", languageToggle: "中 / EN", source: "来源", selectAll: "全选", deselectAll: "取消全选"
+    search: "搜索", installed: "已安装", settings: "设置", searchPlaceholder: "搜索技能，例如 react、python、analysis...", searchAction: "搜索", checkUpdates: "检查更新", installedSkills: "已安装技能", updateAll: "全部更新", noInstalled: "还没有安装任何技能，先去搜索页找一个。", appSettings: "应用设置", globalShortcut: "全局快捷键", save: "保存", shortcutHint: "用于全局打开搜索窗口。", globalInstallDefault: "默认全局安装", globalInstallDefaultHint: "默认附带 -g 参数安装技能", updateResult: "检查结果", subSkillDiscovery: "子技能探测命令", installCommand: "安装命令", globalInstall: "全局安装", globalInstallHint: "为所有项目安装", installAll: "安装全部", installAllHint: "包含所有子技能，不会自动选择全部 Agent", copyMode: "复制模式", copyModeHint: "对应 --copy，复制文件而不是软链接", fullDepth: "深度扫描", fullDepthHint: "对应 --full-depth，递归扫描全部子目录", targetAgents: "目标 Agent", projectInstall: "项目安装", projectInstallHint: "安装到指定项目目录", projectFolder: "项目文件夹", chooseFolder: "选择文件夹", projectFolderPlaceholder: "输入项目路径，或点击选择文件夹", subSkills: "子技能", noSubSkills: "没有可识别的子技能，或当前仓库无法列出子技能。", cancel: "取消", installSkill: "安装技能", runningCommand: "当前命令", searchEmpty: "搜索技能后，结果会在这里展示并可直接安装。", installDone: "安装完成", installDoneBody: "技能已安装并同步", installFailed: "安装失败", installFailedBody: "请查看日志", projectPathRequired: "请先选择项目目录", projectPathRequiredBody: "项目安装模式下必须设置项目路径", language: "语言", languageToggle: "中 / EN", source: "来源", selectAll: "全选", deselectAll: "取消全选"
   },
   en: {
-    search: "Search", installed: "Installed", settings: "Settings", searchPlaceholder: "Find skills, for example react, python, analysis...", searchAction: "Search", checkUpdates: "Check Updates", installedSkills: "Installed Skills", updateAll: "Update All", noInstalled: "No skills installed yet. Search for one first.", appSettings: "Application Settings", globalShortcut: "Global Shortcut", save: "Save", shortcutHint: "Used to open the search window globally.", globalInstallDefault: "Default Global Install", globalInstallDefaultHint: "Install skills globally by default with -g", updateResult: "Update Check Result", subSkillDiscovery: "Sub Skill Discovery", installCommand: "Install Command", globalInstall: "Global Install", globalInstallHint: "Install for all projects", installAll: "Install All", installAllHint: "Include all sub-skills", targetAgents: "Target Agents", projectInstall: "Project Install", projectInstallHint: "Install into a specific project folder", projectFolder: "Project Folder", chooseFolder: "Choose Folder", projectFolderPlaceholder: "Enter a project path or choose a folder", subSkills: "Sub Skills", noSubSkills: "No recognizable sub-skills were found, or this repo could not list them.", cancel: "Cancel", installSkill: "Install Skill", runningCommand: "Running Command", searchEmpty: "Search for a skill and results will appear here for direct install.", installDone: "Install Complete", installDoneBody: "Skill installed and synced", installFailed: "Install Failed", installFailedBody: "Check the logs for details", language: "Language", languageToggle: "ZH / En", source: "Source", selectAll: "Select All", deselectAll: "Deselect"
+    search: "Search", installed: "Installed", settings: "Settings", searchPlaceholder: "Find skills, for example react, python, analysis...", searchAction: "Search", checkUpdates: "Check Updates", installedSkills: "Installed Skills", updateAll: "Update All", noInstalled: "No skills installed yet. Search for one first.", appSettings: "Application Settings", globalShortcut: "Global Shortcut", save: "Save", shortcutHint: "Used to open the search window globally.", globalInstallDefault: "Default Global Install", globalInstallDefaultHint: "Install skills globally by default with -g", updateResult: "Update Check Result", subSkillDiscovery: "Sub Skill Discovery", installCommand: "Install Command", globalInstall: "Global Install", globalInstallHint: "Install for all projects", installAll: "Install All", installAllHint: "Include all sub-skills without auto-selecting all agents", copyMode: "Copy Mode", copyModeHint: "Maps to --copy and copies files instead of symlinks", fullDepth: "Deep Scan", fullDepthHint: "Maps to --full-depth and scans nested directories", targetAgents: "Target Agents", projectInstall: "Project Install", projectInstallHint: "Install into a specific project folder", projectFolder: "Project Folder", chooseFolder: "Choose Folder", projectFolderPlaceholder: "Enter a project path or choose a folder", subSkills: "Sub Skills", noSubSkills: "No recognizable sub-skills were found, or this repo could not list them.", cancel: "Cancel", installSkill: "Install Skill", runningCommand: "Running Command", searchEmpty: "Search for a skill and results will appear here for direct install.", installDone: "Install Complete", installDoneBody: "Skill installed and synced", installFailed: "Install Failed", installFailedBody: "Check the logs for details", projectPathRequired: "Please choose a project folder first", projectPathRequiredBody: "Project install requires a non-empty project path", language: "Language", languageToggle: "ZH / En", source: "Source", selectAll: "Select All", deselectAll: "Deselect"
   },
 };
 
@@ -166,6 +168,7 @@ function App() {
     settings,
     history,
     installed_cache,
+    installConfig,
     searchQuery,
     searchStatus,
     searchResults,
@@ -175,53 +178,110 @@ function App() {
     setSearchQuery,
     setSearchResults,
     setSearchStatus,
+    appendInstallLog,
+    finishInstallJob,
     upsertInstallJob,
     setInstalledCache,
     updateSettings,
+    updateInstallConfig,
   } = useAppStore();
 
   const t = messages[settings.language];
   const [view, setView] = useState<ViewMode>("search");
   const [selectedSkill, setSelectedSkill] = useState<SkillResult | null>(null);
   const [subSkills, setSubSkills] = useState<string[]>([]);
-  const [config, setConfig] = useState<InstallConfig>({
-    isGlobal: true,
-    projectPath: "",
-    agents: [],
-    skills: [],
-    copyMode: false,
-    fullDepth: false,
-    allMode: false,
-  });
+  const config = installConfig;
   const [updateOutput, setUpdateOutput] = useState("");
-  const [submittedQuery, setSubmittedQuery] = useState("");
+  const [installedScope, setInstalledScope] = useState<"global" | "project">("global");
+  const latestSearchRequestRef = useRef(0);
+  const lastSearchedQueryRef = useRef("");
+  const debouncedSearchQuery = useDebouncedValue(searchQuery.trim(), 350);
+  const listCommandPreview = selectedSkill ? buildAddListCommand(selectedSkill.source) : "";
+  const installCommandPreview = selectedSkill ? buildAddCommand(selectedSkill.source, config) : "";
 
 
-  useEffect(() => {
-    void loadConfig();
-    void handleList();
-  }, [loadConfig]);
+  const handleList = useCallback(async (scope: "global" | "project") => {
+    try {
+      const output = await invoke<string>("execute_npx_skills_list", {
+        isGlobal: scope === "global",
+      });
+      const parsed = parseSkillsListOutput(output);
+      await setInstalledCache(parsed);
+    } catch (error) {
+      console.error("Failed to list installed skills", error);
+    }
+  }, [setInstalledCache]);
+
+  const runSearch = useCallback(async (query: string, force = false) => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      latestSearchRequestRef.current += 1;
+      lastSearchedQueryRef.current = "";
+      setSearchResults([]);
+      setSearchStatus("idle");
+      return;
+    }
+
+    if (!force && trimmed === lastSearchedQueryRef.current) {
+      return;
+    }
+
+    const requestId = ++latestSearchRequestRef.current;
+    lastSearchedQueryRef.current = trimmed;
+    setSearchStatus("loading");
+    try {
+      const output = await invoke<string>("execute_npx_skills_find_with_logs", {
+        id: `search-${requestId}-${Date.now()}`,
+        query: trimmed,
+      });
+      if (requestId !== latestSearchRequestRef.current) {
+        return;
+      }
+      const parsed = parseSkillsFindOutput(output);
+      setSearchResults(parsed);
+      setSearchStatus("idle");
+      await addHistory(trimmed);
+    } catch (error) {
+      if (requestId !== latestSearchRequestRef.current) {
+        return;
+      }
+      setSearchStatus("error", String(error));
+    }
+  }, [addHistory, setSearchResults, setSearchStatus]);
 
   useEffect(() => {
     const init = async () => {
-      await invoke("set_global_shortcut", { accelerator: settings.shortcut });
+      await loadConfig();
+      const { settings: nextSettings } = useAppStore.getState();
+      const initialScope = nextSettings.is_global ? "global" : "project";
+      setInstalledScope(initialScope);
+      await handleList(initialScope);
+    };
+    void init();
+  }, [handleList, loadConfig]);
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await invoke("set_global_shortcut", { accelerator: settings.shortcut });
+      } catch (error) {
+        console.error("Failed to set global shortcut", error);
+      }
     };
     init();
   }, [settings.shortcut]);
 
   useEffect(() => {
-    setConfig((prev) => ({ ...prev, isGlobal: settings.is_global }));
-  }, [settings.is_global]);
-
-  useEffect(() => {
     const unlistenLogs = listen<{ id: string; line: string }>("skills-command-log", (event) => {
+      appendInstallLog(event.payload.id, event.payload.line);
       console.log(`[${event.payload.id}] ${event.payload.line}`);
     });
 
     const unlistenFinished = listen<{ id: string; status: "success" | "error"; message?: string }>("skills-command-finished", (event) => {
+      finishInstallJob(event.payload.id, event.payload.status, event.payload.message);
       if (event.payload.status === "success") {
         notify(t.installDone, t.installDoneBody);
-        void handleList();
+        void handleList(installedScope);
       } else {
         notify(t.installFailed, event.payload.message ?? t.installFailedBody);
       }
@@ -231,33 +291,11 @@ function App() {
       unlistenLogs.then((fn) => fn());
       unlistenFinished.then((fn) => fn());
     };
-  }, [t.installDone, t.installDoneBody, t.installFailed, t.installFailedBody]);
+  }, [appendInstallLog, finishInstallJob, handleList, installedScope, t.installDone, t.installDoneBody, t.installFailed, t.installFailedBody]);
 
   useEffect(() => {
-    if (!submittedQuery.trim()) {
-      setSearchResults([]);
-      setSearchStatus("idle");
-      return;
-    }
-
-    const run = async () => {
-      setSearchStatus("loading");
-      try {
-        const output = await invoke<string>("execute_npx_skills_find_with_logs", {
-          id: `search-${Date.now()}`,
-          query: submittedQuery,
-        });
-        const parsed = parseSkillsFindOutput(output);
-        setSearchResults(parsed);
-        setSearchStatus("idle");
-        await addHistory(submittedQuery);
-      } catch (error) {
-        setSearchStatus("error", String(error));
-      }
-    };
-
-    void run();
-  }, [addHistory, submittedQuery, setSearchResults, setSearchStatus]);
+    void runSearch(debouncedSearchQuery);
+  }, [debouncedSearchQuery, runSearch]);
 
   useEffect(() => {
     if (!selectedSkill) return;
@@ -279,16 +317,20 @@ function App() {
   const handleSearchSelect = (skill: SkillResult) => {
     setSelectedSkill(skill);
     setSubSkills([]);
-    setConfig((prev) => ({ ...prev, skills: [], agents: [], allMode: false, projectPath: prev.projectPath }));
+    void updateInstallConfig({ skills: [] });
   };
 
   const handleSearch = () => {
     const trimmed = searchQuery.trim();
-    setSubmittedQuery(trimmed);
+    void runSearch(trimmed, true);
   };
 
   const handleInstall = async () => {
     if (!selectedSkill) return;
+    if (!config.isGlobal && !config.projectPath.trim()) {
+      await notify(t.projectPathRequired, t.projectPathRequiredBody);
+      return;
+    }
 
     const id = `${Date.now()}`;
     const command = buildAddCommand(selectedSkill.source, config);
@@ -303,25 +345,22 @@ function App() {
     });
     setSelectedSkill(null);
 
-    await invoke("execute_npx_skills_add", {
-      id,
-      source: selectedSkill.source,
-      is_global: config.isGlobal,
-      agents: config.agents,
-      skills: config.skills,
-      current_dir: config.isGlobal ? null : (config.projectPath.trim() || null),
-      copy_mode: config.copyMode,
-      full_depth: config.fullDepth,
-      all_mode: config.allMode,
-    });
-  };
-
-  const handleList = async () => {
-    const output = await invoke<string>("execute_npx_skills_list", {
-      is_global: settings.is_global,
-    });
-    const parsed = parseSkillsListOutput(output);
-    await setInstalledCache(parsed);
+    try {
+      await invoke("execute_npx_skills_add", {
+        id,
+        source: selectedSkill.source,
+        isGlobal: config.isGlobal,
+        agents: config.agents,
+        skills: config.skills,
+        currentDir: config.isGlobal ? null : (config.projectPath.trim() || null),
+        copyMode: config.copyMode,
+        fullDepth: config.fullDepth,
+        allMode: config.allMode,
+      });
+    } catch (error) {
+      finishInstallJob(id, "error", String(error));
+      notify(t.installFailed, String(error));
+    }
   };
 
   const handleCheckUpdate = async () => {
@@ -347,7 +386,7 @@ function App() {
     try {
       const selected = await invoke<string | null>("pick_project_folder");
       if (selected) {
-        setConfig((prev) => ({ ...prev, projectPath: selected, isGlobal: false }));
+        await updateInstallConfig({ projectPath: selected, isGlobal: false });
       }
     } catch (error) {
       console.error("Failed to pick project folder", error);
@@ -355,23 +394,15 @@ function App() {
   };
 
   const toggleAgent = (agent: string) => {
-    setConfig((prev) => {
-      const exists = prev.agents.includes(agent);
-      return {
-        ...prev,
-        agents: exists ? prev.agents.filter((item) => item !== agent) : [...prev.agents, agent],
-      };
-    });
+    const exists = config.agents.includes(agent);
+    const agents = exists ? config.agents.filter((item) => item !== agent) : [...config.agents, agent];
+    void updateInstallConfig({ agents, allMode: false });
   };
 
   const toggleSkill = (skill: string) => {
-    setConfig((prev) => {
-      const exists = prev.skills.includes(skill);
-      return {
-        ...prev,
-        skills: exists ? prev.skills.filter((item) => item !== skill) : [...prev.skills, skill],
-      };
-    });
+    const exists = config.skills.includes(skill);
+    const skills = exists ? config.skills.filter((item) => item !== skill) : [...config.skills, skill];
+    void updateInstallConfig({ skills });
   };
 
   const notify = async (title: string, body: string) => {
@@ -402,7 +433,7 @@ function App() {
             active={view === "installed"}
             onClick={() => {
               setView("installed");
-              void handleList();
+              void handleList(installedScope);
             }}
             label={t.installed}
           />
@@ -496,7 +527,10 @@ function App() {
                             {history.map((item) => (
                               <button
                                 key={item}
-                                onClick={() => { setSearchQuery(item); setSubmittedQuery(item); }}
+                                onClick={() => {
+                                  setSearchQuery(item);
+                                  void runSearch(item, true);
+                                }}
                                 className="px-3 py-1 rounded-full bg-zinc-900/50 border border-zinc-800 text-xs hover:border-zinc-700 hover:text-zinc-300 transition-colors"
                               >
                                 {item}
@@ -521,17 +555,45 @@ function App() {
               >
                 <div className="flex items-center justify-between gap-4">
                   <h2 className="text-lg font-semibold text-zinc-200">{t.installedSkills}</h2>
-                  <button
-                    onClick={handleUpdateAll}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium rounded-lg transition-colors"
-                  >
-                    <Download size={14} /> {t.updateAll}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-1 flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setInstalledScope("global");
+                          void handleList("global");
+                        }}
+                        className={cn(
+                          "px-3 py-1.5 rounded-md text-xs transition-colors",
+                          installedScope === "global" ? "bg-primary/20 text-primary" : "text-zinc-400 hover:text-zinc-200",
+                        )}
+                      >
+                        {t.globalInstall}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setInstalledScope("project");
+                          void handleList("project");
+                        }}
+                        className={cn(
+                          "px-3 py-1.5 rounded-md text-xs transition-colors",
+                          installedScope === "project" ? "bg-primary/20 text-primary" : "text-zinc-400 hover:text-zinc-200",
+                        )}
+                      >
+                        {t.projectInstall}
+                      </button>
+                    </div>
+                    <button
+                      onClick={handleUpdateAll}
+                      className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium rounded-lg transition-colors"
+                    >
+                      <Download size={14} /> {t.updateAll}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {installed_cache.map((item) => (
-                    <SkillCard key={item.name} skill={item} sourceLabel={t.source} compact />
+                    <SkillCard key={`${item.name}-${item.path}`} skill={item} sourceLabel={t.source} compact />
                   ))}
                 </div>
                 {installed_cache.length === 0 && (
@@ -639,7 +701,7 @@ function App() {
                       "p-4 rounded-xl border cursor-pointer transition-all",
                       config.isGlobal ? "border-primary/50 bg-primary/5" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700",
                     )}
-                    onClick={() => setConfig((prev) => ({ ...prev, isGlobal: true }))}
+                    onClick={() => void updateInstallConfig({ isGlobal: true })}
                   >
                     <div className="flex items-center gap-3">
                       <Globe size={20} className={config.isGlobal ? "text-primary" : "text-zinc-500"} />
@@ -654,7 +716,7 @@ function App() {
                       "p-4 rounded-xl border cursor-pointer transition-all",
                       !config.isGlobal ? "border-primary/50 bg-primary/5" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700",
                     )}
-                    onClick={() => setConfig((prev) => ({ ...prev, isGlobal: false }))}
+                    onClick={() => void updateInstallConfig({ isGlobal: false })}
                   >
                     <div className="flex items-center gap-3">
                       <Layers size={20} className={!config.isGlobal ? "text-primary" : "text-zinc-500"} />
@@ -672,7 +734,7 @@ function App() {
                     <div className="flex gap-2">
                       <input
                         value={config.projectPath}
-                        onChange={(event) => setConfig((prev) => ({ ...prev, projectPath: event.target.value }))}
+                        onChange={(event) => void updateInstallConfig({ projectPath: event.target.value, isGlobal: false })}
                         placeholder={t.projectFolderPlaceholder}
                         className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-zinc-200 focus:border-primary/50 focus:ring-1 focus:ring-primary/20 outline-none transition-all"
                       />
@@ -692,7 +754,7 @@ function App() {
                     "p-4 rounded-xl border cursor-pointer transition-all",
                     config.allMode ? "border-primary/50 bg-primary/5" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700",
                   )}
-                  onClick={() => setConfig((prev) => ({ ...prev, allMode: !prev.allMode, skills: prev.allMode ? prev.skills : [] }))}
+                  onClick={() => void updateInstallConfig({ allMode: !config.allMode, skills: config.allMode ? config.skills : [] })}
                 >
                   <div className="flex items-center gap-3">
                     <Layers size={20} className={config.allMode ? "text-primary" : "text-zinc-500"} />
@@ -700,6 +762,29 @@ function App() {
                       <div className="font-medium text-sm">{t.installAll}</div>
                       <div className="text-xs text-zinc-500">{t.installAllHint}</div>
                     </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div
+                    className={cn(
+                      "p-4 rounded-xl border cursor-pointer transition-all",
+                      config.copyMode ? "border-primary/50 bg-primary/5" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700",
+                    )}
+                    onClick={() => void updateInstallConfig({ copyMode: !config.copyMode })}
+                  >
+                    <div className="font-medium text-sm">{t.copyMode}</div>
+                    <div className="text-xs text-zinc-500 mt-1">{t.copyModeHint}</div>
+                  </div>
+                  <div
+                    className={cn(
+                      "p-4 rounded-xl border cursor-pointer transition-all",
+                      config.fullDepth ? "border-primary/50 bg-primary/5" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700",
+                    )}
+                    onClick={() => void updateInstallConfig({ fullDepth: !config.fullDepth })}
+                  >
+                    <div className="font-medium text-sm">{t.fullDepth}</div>
+                    <div className="text-xs text-zinc-500 mt-1">{t.fullDepthHint}</div>
                   </div>
                 </div>
 
@@ -714,12 +799,10 @@ function App() {
                             onClick={() => {
                               const categoryAgents: string[] = [...category.agents];
                               const allSelected = categoryAgents.every((a) => config.agents.includes(a));
-                              setConfig((prev) => ({
-                                ...prev,
-                                agents: allSelected
-                                  ? prev.agents.filter((a) => !categoryAgents.includes(a))
-                                  : [...new Set([...prev.agents, ...categoryAgents])],
-                              }));
+                              const agents = allSelected
+                                ? config.agents.filter((a) => !categoryAgents.includes(a))
+                                : [...new Set([...config.agents, ...categoryAgents])];
+                              void updateInstallConfig({ agents, allMode: false });
                             }}
                             className="text-[11px] text-zinc-500 hover:text-primary transition-colors"
                           >
@@ -786,6 +869,18 @@ function App() {
                     )}
                   </div>
                 )}
+
+                <div className="space-y-3">
+                  <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block">{t.runningCommand}</label>
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-3 text-[11px] font-mono text-zinc-400 break-all">
+                    <div className="text-zinc-500 mb-1">{t.subSkillDiscovery}</div>
+                    <div>{listCommandPreview}</div>
+                  </div>
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-3 text-[11px] font-mono text-zinc-400 break-all">
+                    <div className="text-zinc-500 mb-1">{t.installCommand}</div>
+                    <div>{installCommandPreview}</div>
+                  </div>
+                </div>
               </div>
 
               <div className="p-6 border-t border-zinc-800 bg-zinc-900/50 flex justify-end gap-3">

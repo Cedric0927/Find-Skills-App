@@ -47,6 +47,7 @@ export type InstallJob = {
 
 export type AppState = {
   settings: Settings;
+  installConfig: InstallConfig;
   history: string[];
   installed_cache: InstalledCacheItem[];
   searchQuery: string;
@@ -57,6 +58,7 @@ export type AppState = {
   loadConfig: () => Promise<void>;
   saveConfig: () => Promise<void>;
   updateSettings: (partial: Partial<Settings>) => Promise<void>;
+  updateInstallConfig: (partial: Partial<InstallConfig>) => Promise<void>;
   addHistory: (query: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
   setSearchResults: (results: SkillResult[]) => void;
@@ -76,8 +78,19 @@ const defaultSettings: Settings = {
   language: "zh",
 };
 
+const defaultInstallConfig: InstallConfig = {
+  isGlobal: true,
+  projectPath: "",
+  agents: [],
+  skills: [],
+  copyMode: false,
+  fullDepth: false,
+  allMode: false,
+};
+
 export const useAppStore = create<AppState>((set, get) => ({
   settings: defaultSettings,
+  installConfig: defaultInstallConfig,
   history: [],
   installed_cache: [],
   searchQuery: "",
@@ -87,14 +100,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadConfig: async () => {
     const store = await storePromise;
     const settings = { ...defaultSettings, ...((await store.get<Settings>("settings")) ?? {}) };
+    const installConfig = {
+      ...defaultInstallConfig,
+      isGlobal: settings.is_global,
+      ...((await store.get<InstallConfig>("install_config")) ?? {}),
+    };
     const history = (await store.get<string[]>("history")) ?? [];
     const installed_cache = (await store.get<InstalledCacheItem[]>("installed_cache")) ?? [];
-    set({ settings, history, installed_cache });
+    set({ settings, installConfig, history, installed_cache });
   },
   saveConfig: async () => {
     const store = await storePromise;
-    const { settings, history, installed_cache } = get();
+    const { settings, installConfig, history, installed_cache } = get();
     await store.set("settings", settings);
+    await store.set("install_config", installConfig);
     await store.set("history", history);
     await store.set("installed_cache", installed_cache);
     await store.save();
@@ -104,6 +123,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     const next = { ...get().settings, ...partial };
     set({ settings: next });
     await store.set("settings", next);
+    await store.save();
+  },
+  updateInstallConfig: async (partial) => {
+    const store = await storePromise;
+    const next = { ...get().installConfig, ...partial };
+    set({ installConfig: next });
+    await store.set("install_config", next);
     await store.save();
   },
   addHistory: async (query) => {

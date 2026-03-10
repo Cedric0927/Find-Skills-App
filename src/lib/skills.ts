@@ -12,15 +12,50 @@ function joinCommand(args: string[]) {
   return args.map(quoteArg).join(" ");
 }
 
+function stripAnsi(value: string) {
+  return value.replace(/\u001b\[[0-9;]*m/g, "");
+}
+
 function extractSkillSource(line: string) {
-  const match = line.match(/^([A-Za-z0-9._-]+\/[A-Za-z0-9._-]+@[A-Za-z0-9._-]+(?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?)(?:\s+(.*))?$/);
+  const trimmed = line.trim();
+  if (/^install with\b/i.test(trimmed) || /^usage:\s*/i.test(trimmed)) {
+    return null;
+  }
+
+  const match = line.match(/([A-Za-z0-9._-]+\/[A-Za-z0-9._-]+@[A-Za-z0-9._-]+(?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?)/);
   if (!match) {
     return null;
   }
 
+  const source = match[1];
+  const sourceIndex = line.indexOf(source);
+  const beforeChar = sourceIndex > 0 ? line[sourceIndex - 1] : "";
+  const afterChar = line[sourceIndex + source.length] ?? "";
+  if (beforeChar === "<" && afterChar === ">") {
+    return null;
+  }
+
+  const [repoPath = "", skillName = ""] = source.split("@");
+  const [owner = "", repo = ""] = repoPath.split("/");
+  if (
+    owner.toLowerCase() === "owner" &&
+    repo.toLowerCase() === "repo" &&
+    skillName.toLowerCase() === "skill"
+  ) {
+    return null;
+  }
+
+  const leading = sourceIndex > 0 ? line.slice(0, sourceIndex).trim() : "";
+  const trailing = line.slice(sourceIndex + source.length).trim();
+  const metaCandidate = [leading, trailing]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/^[-:|]\s*/, "")
+    .trim();
+
   return {
-    source: match[1],
-    meta: match[2]?.trim() ?? "",
+    source,
+    meta: metaCandidate,
   };
 }
 
@@ -95,16 +130,18 @@ export function buildAddCommand(source: string, config: InstallConfig) {
     args.push("-g");
   }
 
-  if (config.allMode) {
-    args.push("--all");
-  } else {
-    if (config.agents.length > 0) {
-      args.push("-a", config.agents.join(","));
-    }
+  if (config.agents.length > 0) {
+    config.agents.forEach((agent) => {
+      args.push("-a", agent);
+    });
+  }
 
-    if (config.skills.length > 0) {
-      args.push("-s", config.skills.join(","));
-    }
+  if (config.allMode) {
+    args.push("-s", "*");
+  } else if (config.skills.length > 0) {
+    config.skills.forEach((skill) => {
+      args.push("-s", skill);
+    });
   }
 
   if (config.copyMode) {
@@ -119,7 +156,7 @@ export function buildAddCommand(source: string, config: InstallConfig) {
   const command = buildSkillsCommand(args);
 
   if (!config.isGlobal && config.projectPath.trim()) {
-    return `cd ${quoteArg(config.projectPath.trim())} && ${command}`;
+    return `cd ${quoteArg(config.projectPath.trim())}; ${command}`;
   }
 
   return command;
@@ -128,9 +165,10 @@ export function buildAddCommand(source: string, config: InstallConfig) {
 export function parseSkillsFindOutput(output: string): SkillResult[] {
   const lines = output
     .split(/\r?\n/)
-    .map((line) => line.trim())
+    .map((line) => stripAnsi(line).trim())
     .filter(Boolean);
 
+  const seen = new Set<string>();
   const results: SkillResult[] = [];
 
   for (const line of lines) {
@@ -138,6 +176,10 @@ export function parseSkillsFindOutput(output: string): SkillResult[] {
     if (!parsed) {
       continue;
     }
+    if (seen.has(parsed.source)) {
+      continue;
+    }
+    seen.add(parsed.source);
 
     results.push({
       source: parsed.source,
@@ -152,35 +194,55 @@ export function parseSkillsFindOutput(output: string): SkillResult[] {
 
 export function parseSkillsListOutput(output: string) {
   const lines = output
-    .split("\n")
-    .map((line) => line.replace(/\u001b\[[0-9;]*m/g, "").trim())
+    .split(/\r?\n/)
+    .map((line) => stripAnsi(line).trim())
     .filter(Boolean);
 
   const results: Array<{ name: string; path: string; agents: string }> = [];
+  const seen = new Set<string>();
 
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
+  const cleanLine = (line: string) =>
+    line
+      .replace(/^[\s│├└─•*→-]+/, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  for (const rawLine of lines) {
+    const line = cleanLine(rawLine);
     if (/^global skills$/i.test(line)) {
       continue;
     }
 
-    const primary = line.match(/^([A-Za-z0-9._-]+)\s+(.+)$/);
-    if (!primary || /^agents:/i.test(line)) {
+    if (/^agents:/i.test(line)) {
+      const last = results[results.length - 1];
+      if (!last) {
+        continue;
+      }
+      last.agents = line.replace(/^agents:\s*/i, "").trim();
       continue;
     }
 
-    let agents = "";
-    const next = lines[index + 1];
-    if (next?.toLowerCase().startsWith("agents:")) {
-      agents = next.replace(/^agents:\s*/i, "").trim();
-      index += 1;
+    const inlineAgentsMatch = line.match(/\s+agents:\s*(.+)$/i);
+    const baseLine = inlineAgentsMatch ? line.slice(0, inlineAgentsMatch.index).trim() : line;
+    const agents = inlineAgentsMatch?.[1]?.trim() ?? "";
+
+    const primary = baseLine.match(/^([A-Za-z0-9._-]+)\s+(.+)$/);
+    if (!primary) {
+      continue;
     }
 
-    results.push({
-      name: primary[1],
-      path: primary[2].trim(),
-      agents,
-    });
+    const path = primary[2].trim();
+    if (!/[\\/.:~]/.test(path)) {
+      continue;
+    }
+
+    const identity = `${primary[1]}|${path}`;
+    if (seen.has(identity)) {
+      continue;
+    }
+    seen.add(identity);
+
+    results.push({ name: primary[1], path, agents });
   }
 
   return results;
