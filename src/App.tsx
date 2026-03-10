@@ -40,14 +40,39 @@ function cn(...inputs: ClassValue[]) {
 
 type ViewMode = "search" | "installed" | "settings";
 
-const AGENT_OPTIONS = ["claude-code", "codex", "cursor", "windsurf", "copilot", "gemini-cli", "aider", "cline", "roo-code", "continue", "goose", "amp"];
+const AGENT_CATEGORIES = [
+  {
+    "id": "ai-native-ides",
+    "label": { "zh": "AI 原生 IDE", "en": "AI-Native IDEs" },
+    "description": { "zh": "为 AI 深度定制的编辑器，提供沉浸式编程体验", "en": "Editors built from the ground up for AI pair programming." },
+    "agents": ["cursor", "windsurf", "trae", "antigravity"]
+  },
+  {
+    "id": "cli-agents",
+    "label": { "zh": "命令行智能体", "en": "CLI Agents" },
+    "description": { "zh": "运行在终端的自主代理，可执行文件操作和命令", "en": "Autonomous agents running in your terminal with full system access." },
+    "agents": ["claude-code", "codex", "gemini", "amp", "kiro-cli", "kilo", "opencode"]
+  },
+  {
+    "id": "editor-plugins",
+    "label": { "zh": "编辑器插件 / 助手", "en": "Editor Plugins & Assistants" },
+    "description": { "zh": "集成在 VS Code 等编辑器中的 AI 辅助工具", "en": "AI companions integrated into existing editors like VS Code." },
+    "agents": ["copilot", "continue", "roo", "aider", "goose"]
+  },
+  {
+    "id": "autonomous-agents",
+    "label": { "zh": "自主代理 / 数字员工", "en": "Autonomous Agents" },
+    "description": { "zh": "具备长期记忆和跨应用操作能力的独立 AI 代理", "en": "Independent AI agents with long-term memory and cross-app capabilities." },
+    "agents": ["clawdbot", "droid"]
+  },
+] as const;
 
 const messages: Record<Language, Record<string, string>> = {
   zh: {
-    search: "搜索", installed: "已安装", settings: "设置", searchPlaceholder: "搜索技能，例如 react、python、analysis...", searchAction: "搜索", checkUpdates: "检查更新", installedSkills: "已安装技能", updateAll: "全部更新", noInstalled: "还没有安装任何技能，先去搜索页找一个。", appSettings: "应用设置", globalShortcut: "全局快捷键", save: "保存", shortcutHint: "用于全局打开搜索窗口。", globalInstallDefault: "默认全局安装", globalInstallDefaultHint: "默认附带 -g 参数安装技能", updateResult: "检查结果", subSkillDiscovery: "子技能探测命令", installCommand: "安装命令", globalInstall: "全局安装", globalInstallHint: "为所有项目安装", installAll: "安装全部", installAllHint: "包含所有子技能", targetAgents: "目标 Agent", projectInstall: "项目安装", projectInstallHint: "安装到指定项目目录", projectFolder: "项目文件夹", chooseFolder: "选择文件夹", projectFolderPlaceholder: "输入项目路径，或点击选择文件夹", subSkills: "子技能", noSubSkills: "没有可识别的子技能，或当前仓库无法列出子技能。", cancel: "取消", installSkill: "安装技能", runningCommand: "当前命令", searchEmpty: "搜索技能后，结果会在这里展示并可直接安装。", installDone: "安装完成", installDoneBody: "技能已安装并同步", installFailed: "安装失败", installFailedBody: "请查看日志", language: "语言", languageToggle: "中 / EN", source: "来源"
+    search: "搜索", installed: "已安装", settings: "设置", searchPlaceholder: "搜索技能，例如 react、python、analysis...", searchAction: "搜索", checkUpdates: "检查更新", installedSkills: "已安装技能", updateAll: "全部更新", noInstalled: "还没有安装任何技能，先去搜索页找一个。", appSettings: "应用设置", globalShortcut: "全局快捷键", save: "保存", shortcutHint: "用于全局打开搜索窗口。", globalInstallDefault: "默认全局安装", globalInstallDefaultHint: "默认附带 -g 参数安装技能", updateResult: "检查结果", subSkillDiscovery: "子技能探测命令", installCommand: "安装命令", globalInstall: "全局安装", globalInstallHint: "为所有项目安装", installAll: "安装全部", installAllHint: "包含所有子技能", targetAgents: "目标 Agent", projectInstall: "项目安装", projectInstallHint: "安装到指定项目目录", projectFolder: "项目文件夹", chooseFolder: "选择文件夹", projectFolderPlaceholder: "输入项目路径，或点击选择文件夹", subSkills: "子技能", noSubSkills: "没有可识别的子技能，或当前仓库无法列出子技能。", cancel: "取消", installSkill: "安装技能", runningCommand: "当前命令", searchEmpty: "搜索技能后，结果会在这里展示并可直接安装。", installDone: "安装完成", installDoneBody: "技能已安装并同步", installFailed: "安装失败", installFailedBody: "请查看日志", language: "语言", languageToggle: "中 / EN", source: "来源", selectAll: "全选", deselectAll: "取消全选"
   },
   en: {
-    search: "Search", installed: "Installed", settings: "Settings", searchPlaceholder: "Find skills, for example react, python, analysis...", searchAction: "Search", checkUpdates: "Check Updates", installedSkills: "Installed Skills", updateAll: "Update All", noInstalled: "No skills installed yet. Search for one first.", appSettings: "Application Settings", globalShortcut: "Global Shortcut", save: "Save", shortcutHint: "Used to open the search window globally.", globalInstallDefault: "Default Global Install", globalInstallDefaultHint: "Install skills globally by default with -g", updateResult: "Update Check Result", subSkillDiscovery: "Sub Skill Discovery", installCommand: "Install Command", globalInstall: "Global Install", globalInstallHint: "Install for all projects", installAll: "Install All", installAllHint: "Include all sub-skills", targetAgents: "Target Agents", projectInstall: "Project Install", projectInstallHint: "Install into a specific project folder", projectFolder: "Project Folder", chooseFolder: "Choose Folder", projectFolderPlaceholder: "Enter a project path or choose a folder", subSkills: "Sub Skills", noSubSkills: "No recognizable sub-skills were found, or this repo could not list them.", cancel: "Cancel", installSkill: "Install Skill", runningCommand: "Running Command", searchEmpty: "Search for a skill and results will appear here for direct install.", installDone: "Install Complete", installDoneBody: "Skill installed and synced", installFailed: "Install Failed", installFailedBody: "Check the logs for details", language: "Language", languageToggle: "ZH / En", source: "Source"
+    search: "Search", installed: "Installed", settings: "Settings", searchPlaceholder: "Find skills, for example react, python, analysis...", searchAction: "Search", checkUpdates: "Check Updates", installedSkills: "Installed Skills", updateAll: "Update All", noInstalled: "No skills installed yet. Search for one first.", appSettings: "Application Settings", globalShortcut: "Global Shortcut", save: "Save", shortcutHint: "Used to open the search window globally.", globalInstallDefault: "Default Global Install", globalInstallDefaultHint: "Install skills globally by default with -g", updateResult: "Update Check Result", subSkillDiscovery: "Sub Skill Discovery", installCommand: "Install Command", globalInstall: "Global Install", globalInstallHint: "Install for all projects", installAll: "Install All", installAllHint: "Include all sub-skills", targetAgents: "Target Agents", projectInstall: "Project Install", projectInstallHint: "Install into a specific project folder", projectFolder: "Project Folder", chooseFolder: "Choose Folder", projectFolderPlaceholder: "Enter a project path or choose a folder", subSkills: "Sub Skills", noSubSkills: "No recognizable sub-skills were found, or this repo could not list them.", cancel: "Cancel", installSkill: "Install Skill", runningCommand: "Running Command", searchEmpty: "Search for a skill and results will appear here for direct install.", installDone: "Install Complete", installDoneBody: "Skill installed and synced", installFailed: "Install Failed", installFailedBody: "Check the logs for details", language: "Language", languageToggle: "ZH / En", source: "Source", selectAll: "Select All", deselectAll: "Deselect"
   },
 };
 
@@ -680,21 +705,47 @@ function App() {
 
                 <div>
                   <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 block">{t.targetAgents}</label>
-                  <div className="flex flex-wrap gap-2">
-                    {AGENT_OPTIONS.map((agent) => (
-                      <button
-                        key={agent}
-                        onClick={() => toggleAgent(agent)}
-                        className={cn(
-                          "px-4 py-2 rounded-lg text-sm border transition-all flex items-center gap-2",
-                          config.agents.includes(agent)
-                            ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-400"
-                            : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700",
-                        )}
-                      >
-                        {config.agents.includes(agent) && <CheckCircle2 size={14} />}
-                        {agent}
-                      </button>
+                  <div className="space-y-4 max-h-64 overflow-y-auto pr-1">
+                    {AGENT_CATEGORIES.map((category) => (
+                      <div key={category.id} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-zinc-400">{category.label[settings.language]}</span>
+                          <button
+                            onClick={() => {
+                              const categoryAgents: string[] = [...category.agents];
+                              const allSelected = categoryAgents.every((a) => config.agents.includes(a));
+                              setConfig((prev) => ({
+                                ...prev,
+                                agents: allSelected
+                                  ? prev.agents.filter((a) => !categoryAgents.includes(a))
+                                  : [...new Set([...prev.agents, ...categoryAgents])],
+                              }));
+                            }}
+                            className="text-[11px] text-zinc-500 hover:text-primary transition-colors"
+                          >
+                            {category.agents.every((a) => config.agents.includes(a))
+                              ? t.deselectAll
+                              : t.selectAll}
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {category.agents.map((agent) => (
+                            <button
+                              key={agent}
+                              onClick={() => toggleAgent(agent)}
+                              className={cn(
+                                "px-3 py-1.5 rounded-lg text-sm border transition-all flex items-center gap-1.5",
+                                config.agents.includes(agent)
+                                  ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-400"
+                                  : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700",
+                              )}
+                            >
+                              {config.agents.includes(agent) && <CheckCircle2 size={12} />}
+                              {agent}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
