@@ -153,23 +153,37 @@ export function parseSkillsFindOutput(output: string): SkillResult[] {
 export function parseSkillsListOutput(output: string) {
   const lines = output
     .split("\n")
-    .map((line) => line.trim())
+    .map((line) => line.replace(/\u001b\[[0-9;]*m/g, "").trim())
     .filter(Boolean);
-  return lines.map((line) => {
-    const match = line.match(/^([^@]+)@([^\s]+)\s+(.*)$/);
-    if (match) {
-      return {
-        name: match[1],
-        version: match[2],
-        install_date: match[3] || new Date().toISOString().slice(0, 10),
-      };
+
+  const results: Array<{ name: string; path: string; agents: string }> = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (/^global skills$/i.test(line)) {
+      continue;
     }
-    return {
-      name: line,
-      version: "unknown",
-      install_date: new Date().toISOString().slice(0, 10),
-    };
-  });
+
+    const primary = line.match(/^([A-Za-z0-9._-]+)\s+(.+)$/);
+    if (!primary || /^agents:/i.test(line)) {
+      continue;
+    }
+
+    let agents = "";
+    const next = lines[index + 1];
+    if (next?.toLowerCase().startsWith("agents:")) {
+      agents = next.replace(/^agents:\s*/i, "").trim();
+      index += 1;
+    }
+
+    results.push({
+      name: primary[1],
+      path: primary[2].trim(),
+      agents,
+    });
+  }
+
+  return results;
 }
 
 export function parseSkillsSubList(output: string) {

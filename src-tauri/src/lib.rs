@@ -329,32 +329,52 @@ fn run_command_streaming(app: AppHandle, id: String, args: Vec<String>, current_
 }
 
 #[tauri::command]
-fn execute_npx_skills_find_with_logs(window: Window, id: String, query: String) -> Result<String, String> {
-    let sanitized = sanitize_input(&query);
-    let args = vec!["skills".into(), "find".into(), sanitized];
-    run_command_output_with_logs(&window.app_handle(), &id, &args, &None)
+async fn execute_npx_skills_find_with_logs(window: Window, id: String, query: String) -> Result<String, String> {
+    let app_handle = window.app_handle().clone();
+    let task_id = id.clone();
+    let task_query = query.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let sanitized = sanitize_input(&task_query);
+        let args = vec!["skills".into(), "find".into(), sanitized];
+        run_command_output_with_logs(&app_handle, &task_id, &args, &None)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
-fn execute_npx_skills_add_list(source: String) -> Result<String, String> {
-    let sanitized = sanitize_input(&source);
-    let args = vec!["skills".into(), "add".into(), sanitized, "-l".into()];
-    run_command_output(&args, &None)
+async fn execute_npx_skills_add_list(source: String) -> Result<String, String> {
+    let task_source = source.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let sanitized = sanitize_input(&task_source);
+        let args = vec!["skills".into(), "add".into(), sanitized, "-l".into()];
+        run_command_output(&args, &None)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
-fn execute_npx_skills_list(is_global: bool) -> Result<String, String> {
-    let mut args = vec!["skills".into(), "list".into()];
-    if is_global {
-        args.push("-g".into());
-    }
-    run_command_output(&args, &None)
+async fn execute_npx_skills_list(is_global: bool) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut args = vec!["skills".into(), "list".into()];
+        if is_global {
+            args.push("-g".into());
+        }
+        run_command_output(&args, &None)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
-fn execute_npx_skills_check() -> Result<String, String> {
-    let args = vec!["skills".into(), "check".into()];
-    run_command_output(&args, &None)
+async fn execute_npx_skills_check() -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let args = vec!["skills".into(), "check".into()];
+        run_command_output(&args, &None)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -425,29 +445,32 @@ fn execute_npx_skills_update(window: Window, id: String) -> Result<(), String> {
 
 
 #[tauri::command]
-fn pick_project_folder() -> Result<Option<String>, String> {
+async fn pick_project_folder() -> Result<Option<String>, String> {
     let script = r#"Add-Type -AssemblyName System.Windows.Forms
 $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
 $dialog.ShowNewFolderButton = $true
 if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
   Write-Output $dialog.SelectedPath
 }"#;
+    tauri::async_runtime::spawn_blocking(move || {
+        let output = Command::new("powershell")
+            .args(["-NoProfile", "-STA", "-Command", script])
+            .output()
+            .map_err(|error| error.to_string())?;
 
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-STA", "-Command", script])
-        .output()
-        .map_err(|error| error.to_string())?;
+        if !output.status.success() {
+            return Err(decode_and_strip(&output.stderr));
+        }
 
-    if !output.status.success() {
-        return Err(decode_and_strip(&output.stderr));
-    }
-
-    let selected = decode_and_strip(&output.stdout).trim().to_string();
-    if selected.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(selected))
-    }
+        let selected = decode_and_strip(&output.stdout).trim().to_string();
+        if selected.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(selected))
+        }
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]

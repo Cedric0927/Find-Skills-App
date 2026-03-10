@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
@@ -11,7 +11,6 @@ import {
   AlertCircle,
   CheckCircle2,
   CheckSquare,
-  Command as CommandIcon,
   Download,
   Globe,
   Languages,
@@ -26,14 +25,8 @@ import {
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-import { useDebouncedValue } from "./hooks/useDebouncedValue";
 import {
   buildAddCommand,
-  buildAddListCommand,
-  buildCheckCommand,
-  buildFindCommand,
-  buildListCommand,
-  buildUpdateCommand,
   formatSkillLabel,
   parseSkillsFindOutput,
   parseSkillsListOutput,
@@ -45,27 +38,16 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-type CommandLogEvent = {
-  id: string;
-  line: string;
-};
-
-type CommandFinishedEvent = {
-  id: string;
-  status: "success" | "error";
-  message?: string;
-};
-
 type ViewMode = "search" | "installed" | "settings";
 
 const AGENT_OPTIONS = ["claude-code", "codex", "cursor", "windsurf", "copilot", "gemini-cli", "aider", "cline", "roo-code", "continue", "goose", "amp"];
 
 const messages: Record<Language, Record<string, string>> = {
   zh: {
-    search: "搜索", installed: "已安装", settings: "设置", searchPlaceholder: "搜索技能，例如 react、python、analysis...", logs: "日志", checkUpdates: "检查更新", searchCommand: "搜索命令", listCommand: "列表命令", checkCommand: "检查命令", updateCommand: "更新命令", executedCheck: "已执行的检查命令", installedSkills: "已安装技能", updateAll: "全部更新", noInstalled: "还没有安装任何技能，先去搜索页找一个。", appSettings: "应用设置", globalShortcut: "全局快捷键", save: "保存", shortcutHint: "用于全局打开搜索窗口。", globalInstallDefault: "默认全局安装", globalInstallDefaultHint: "默认附带 -g 参数安装技能", updateResult: "检查结果", subSkillDiscovery: "子技能探测命令", installCommand: "安装命令", globalInstall: "全局安装", globalInstallHint: "为所有项目安装", installAll: "安装全部", installAllHint: "包含所有子技能", targetAgents: "目标 Agent", projectInstall: "项目安装", projectInstallHint: "安装到指定项目目录", projectFolder: "项目文件夹", chooseFolder: "选择文件夹", projectFolderPlaceholder: "输入项目路径，或点击选择文件夹", subSkills: "子技能", noSubSkills: "没有可识别的子技能，或当前仓库无法列出子技能。", cancel: "取消", installSkill: "安装技能", installationLog: "安装日志", searchLog: "搜索日志", runningCommand: "当前命令", waitingLogs: "等待日志输出...", searchEmpty: "搜索技能后，结果会在这里展示并可直接安装。", installDone: "安装完成", installDoneBody: "技能已安装并同步", installFailed: "安装失败", installFailedBody: "请查看日志", language: "语言", languageToggle: "中 / EN", source: "来源"
+    search: "搜索", installed: "已安装", settings: "设置", searchPlaceholder: "搜索技能，例如 react、python、analysis...", searchAction: "搜索", checkUpdates: "检查更新", installedSkills: "已安装技能", updateAll: "全部更新", noInstalled: "还没有安装任何技能，先去搜索页找一个。", appSettings: "应用设置", globalShortcut: "全局快捷键", save: "保存", shortcutHint: "用于全局打开搜索窗口。", globalInstallDefault: "默认全局安装", globalInstallDefaultHint: "默认附带 -g 参数安装技能", updateResult: "检查结果", subSkillDiscovery: "子技能探测命令", installCommand: "安装命令", globalInstall: "全局安装", globalInstallHint: "为所有项目安装", installAll: "安装全部", installAllHint: "包含所有子技能", targetAgents: "目标 Agent", projectInstall: "项目安装", projectInstallHint: "安装到指定项目目录", projectFolder: "项目文件夹", chooseFolder: "选择文件夹", projectFolderPlaceholder: "输入项目路径，或点击选择文件夹", subSkills: "子技能", noSubSkills: "没有可识别的子技能，或当前仓库无法列出子技能。", cancel: "取消", installSkill: "安装技能", runningCommand: "当前命令", searchEmpty: "搜索技能后，结果会在这里展示并可直接安装。", installDone: "安装完成", installDoneBody: "技能已安装并同步", installFailed: "安装失败", installFailedBody: "请查看日志", language: "语言", languageToggle: "中 / EN", source: "来源"
   },
   en: {
-    search: "Search", installed: "Installed", settings: "Settings", searchPlaceholder: "Find skills, for example react, python, analysis...", logs: "Logs", checkUpdates: "Check Updates", searchCommand: "Search Command", listCommand: "List Command", checkCommand: "Check Command", updateCommand: "Update Command", executedCheck: "Executed Check Command", installedSkills: "Installed Skills", updateAll: "Update All", noInstalled: "No skills installed yet. Search for one first.", appSettings: "Application Settings", globalShortcut: "Global Shortcut", save: "Save", shortcutHint: "Used to open the search window globally.", globalInstallDefault: "Default Global Install", globalInstallDefaultHint: "Install skills globally by default with -g", updateResult: "Update Check Result", subSkillDiscovery: "Sub Skill Discovery", installCommand: "Install Command", globalInstall: "Global Install", globalInstallHint: "Install for all projects", installAll: "Install All", installAllHint: "Include all sub-skills", targetAgents: "Target Agents", projectInstall: "Project Install", projectInstallHint: "Install into a specific project folder", projectFolder: "Project Folder", chooseFolder: "Choose Folder", projectFolderPlaceholder: "Enter a project path or choose a folder", subSkills: "Sub Skills", noSubSkills: "No recognizable sub-skills were found, or this repo could not list them.", cancel: "Cancel", installSkill: "Install Skill", installationLog: "Installation Log", searchLog: "Search Log", runningCommand: "Running Command", waitingLogs: "Waiting for logs...", searchEmpty: "Search for a skill and results will appear here for direct install.", installDone: "Install Complete", installDoneBody: "Skill installed and synced", installFailed: "Install Failed", installFailedBody: "Check the logs for details", language: "Language", languageToggle: "ZH / En", source: "Source"
+    search: "Search", installed: "Installed", settings: "Settings", searchPlaceholder: "Find skills, for example react, python, analysis...", searchAction: "Search", checkUpdates: "Check Updates", installedSkills: "Installed Skills", updateAll: "Update All", noInstalled: "No skills installed yet. Search for one first.", appSettings: "Application Settings", globalShortcut: "Global Shortcut", save: "Save", shortcutHint: "Used to open the search window globally.", globalInstallDefault: "Default Global Install", globalInstallDefaultHint: "Install skills globally by default with -g", updateResult: "Update Check Result", subSkillDiscovery: "Sub Skill Discovery", installCommand: "Install Command", globalInstall: "Global Install", globalInstallHint: "Install for all projects", installAll: "Install All", installAllHint: "Include all sub-skills", targetAgents: "Target Agents", projectInstall: "Project Install", projectInstallHint: "Install into a specific project folder", projectFolder: "Project Folder", chooseFolder: "Choose Folder", projectFolderPlaceholder: "Enter a project path or choose a folder", subSkills: "Sub Skills", noSubSkills: "No recognizable sub-skills were found, or this repo could not list them.", cancel: "Cancel", installSkill: "Install Skill", runningCommand: "Running Command", searchEmpty: "Search for a skill and results will appear here for direct install.", installDone: "Install Complete", installDoneBody: "Skill installed and synced", installFailed: "Install Failed", installFailedBody: "Check the logs for details", language: "Language", languageToggle: "ZH / En", source: "Source"
   },
 };
 
@@ -108,7 +90,7 @@ const SkillCard = ({
   onClick,
   compact = false,
 }: {
-  skill: SkillResult | { name: string; version: string; install_date: string };
+  skill: SkillResult | { name: string; path: string; agents: string };
   sourceLabel: string;
   onClick?: () => void;
   compact?: boolean;
@@ -131,14 +113,14 @@ const SkillCard = ({
         <h3 className="font-semibold text-zinc-200 group-hover:text-primary transition-colors duration-200">
           {skill.name}
         </h3>
-        {"version" in skill && (
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
-            v{skill.version}
+        {"agents" in skill && skill.agents && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
+            {skill.agents}
           </span>
         )}
       </div>
       <p className="mt-2 text-sm text-zinc-500 line-clamp-2">
-        {"description" in skill ? skill.description : `Installed on ${skill.install_date}`}
+        {"description" in skill ? skill.description : skill.path}
       </p>
     </div>
 
@@ -148,49 +130,11 @@ const SkillCard = ({
           {sourceLabel}: {skill.source}
         </span>
       ) : (
-        <span className="text-xs text-zinc-600">Installed</span>
+        <span className="text-xs text-zinc-600">{skill.agents || "Installed"}</span>
       )}
-      <div className="h-8 w-8 shrink-0 rounded-full bg-zinc-800 flex items-center justify-center opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200">
-        <CommandIcon size={14} className="text-zinc-300" />
-      </div>
     </div>
   </motion.div>
 );
-
-const CommandPreview = ({
-  label,
-  command,
-}: {
-  label: string;
-  command: string;
-}) => {
-  const tokens = command.split(/\s+/).filter(Boolean);
-
-  return (
-    <div className="rounded-2xl border border-zinc-800/60 bg-zinc-950/90 p-4">
-      <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-500">
-        <CommandIcon size={14} className="text-primary" />
-        <span>{label}</span>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {tokens.map((token, index) => (
-          <span
-            key={`${token}-${index}`}
-            className={cn(
-              "rounded-lg border px-2.5 py-1.5 font-mono text-xs",
-              index === 0
-                ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-zinc-800 bg-zinc-900/80 text-zinc-300",
-            )}
-          >
-            {token}
-          </span>
-        ))}
-      </div>
-      <div className="mt-3 font-mono text-xs text-zinc-500 break-all">{command}</div>
-    </div>
-  );
-};
 
 function App() {
   const {
@@ -201,15 +145,12 @@ function App() {
     searchStatus,
     searchResults,
     searchError,
-    installJobs,
     loadConfig,
     addHistory,
     setSearchQuery,
     setSearchResults,
     setSearchStatus,
     upsertInstallJob,
-    appendInstallLog,
-    finishInstallJob,
     setInstalledCache,
     updateSettings,
   } = useAppStore();
@@ -228,28 +169,12 @@ function App() {
     allMode: false,
   });
   const [updateOutput, setUpdateOutput] = useState("");
-  const [showLog, setShowLog] = useState(false);
-  const [searchLogId, setSearchLogId] = useState<string | null>(null);
-  const [searchLogs, setSearchLogs] = useState<string[]>([]);
+  const [submittedQuery, setSubmittedQuery] = useState("");
 
-  const debouncedQuery = useDebouncedValue(searchQuery, 300);
-  const activeJob = useMemo(() => {
-    const jobs = Object.values(installJobs);
-    return jobs.sort((a, b) => b.startedAt - a.startedAt)[0];
-  }, [installJobs]);
-
-  const searchCommand = buildFindCommand(searchQuery);
-  const listCommand = buildListCommand(settings.is_global);
-  const checkCommand = buildCheckCommand();
-  const updateCommand = buildUpdateCommand();
-  const selectedInstallCommand = selectedSkill ? buildAddCommand(selectedSkill.source, config) : "";
-  const selectedListCommand = selectedSkill ? buildAddListCommand(selectedSkill.source) : "";
-  const logTitle = activeJob ? t.installationLog : t.searchLog;
-  const logLines = activeJob?.logs ?? searchLogs;
-  const logCommand = activeJob?.command ?? (searchLogId ? searchCommand : "");
 
   useEffect(() => {
-    loadConfig();
+    void loadConfig();
+    void handleList();
   }, [loadConfig]);
 
   useEffect(() => {
@@ -264,16 +189,11 @@ function App() {
   }, [settings.is_global]);
 
   useEffect(() => {
-    const unlistenLogs = listen<CommandLogEvent>("skills-command-log", (event) => {
-      if (searchLogId && event.payload.id === searchLogId) {
-        setSearchLogs((prev) => [...prev, event.payload.line].slice(-400));
-        return;
-      }
-      appendInstallLog(event.payload.id, event.payload.line);
+    const unlistenLogs = listen<{ id: string; line: string }>("skills-command-log", (event) => {
+      console.log(`[${event.payload.id}] ${event.payload.line}`);
     });
 
-    const unlistenFinished = listen<CommandFinishedEvent>("skills-command-finished", (event) => {
-      finishInstallJob(event.payload.id, event.payload.status, event.payload.message);
+    const unlistenFinished = listen<{ id: string; status: "success" | "error"; message?: string }>("skills-command-finished", (event) => {
       if (event.payload.status === "success") {
         notify(t.installDone, t.installDoneBody);
         void handleList();
@@ -286,39 +206,33 @@ function App() {
       unlistenLogs.then((fn) => fn());
       unlistenFinished.then((fn) => fn());
     };
-  }, [appendInstallLog, finishInstallJob, searchLogId, t.installDone, t.installDoneBody, t.installFailed, t.installFailedBody]);
+  }, [t.installDone, t.installDoneBody, t.installFailed, t.installFailedBody]);
 
   useEffect(() => {
-    if (!debouncedQuery.trim()) {
+    if (!submittedQuery.trim()) {
       setSearchResults([]);
       setSearchStatus("idle");
-      setSearchLogId(null);
-      setSearchLogs([]);
       return;
     }
 
     const run = async () => {
-      const id = `search-${Date.now()}`;
-      setSearchLogId(id);
-      setSearchLogs([]);
       setSearchStatus("loading");
       try {
         const output = await invoke<string>("execute_npx_skills_find_with_logs", {
-          id,
-          query: debouncedQuery,
+          id: `search-${Date.now()}`,
+          query: submittedQuery,
         });
         const parsed = parseSkillsFindOutput(output);
         setSearchResults(parsed);
         setSearchStatus("idle");
-        await addHistory(debouncedQuery);
+        await addHistory(submittedQuery);
       } catch (error) {
         setSearchStatus("error", String(error));
-        setShowLog(true);
       }
     };
 
     void run();
-  }, [addHistory, debouncedQuery, setSearchResults, setSearchStatus]);
+  }, [addHistory, submittedQuery, setSearchResults, setSearchStatus]);
 
   useEffect(() => {
     if (!selectedSkill) return;
@@ -343,6 +257,11 @@ function App() {
     setConfig((prev) => ({ ...prev, skills: [], agents: [], allMode: false, projectPath: prev.projectPath }));
   };
 
+  const handleSearch = () => {
+    const trimmed = searchQuery.trim();
+    setSubmittedQuery(trimmed);
+  };
+
   const handleInstall = async () => {
     if (!selectedSkill) return;
 
@@ -357,7 +276,6 @@ function App() {
       progress: 5,
       startedAt: Date.now(),
     });
-    setShowLog(true);
     setSelectedSkill(null);
 
     await invoke("execute_npx_skills_add", {
@@ -391,13 +309,12 @@ function App() {
     upsertInstallJob({
       id,
       source: "update",
-      command: updateCommand,
+      command: "skills update",
       status: "installing",
       logs: [],
       progress: 5,
       startedAt: Date.now(),
     });
-    setShowLog(true);
     await invoke("execute_npx_skills_update", { id });
   };
 
@@ -475,14 +392,6 @@ function App() {
           >
             <Languages size={18} />
           </button>
-          {activeJob && activeJob.status === "installing" && (
-            <button
-              onClick={() => setShowLog(true)}
-              className="relative p-3 rounded-full bg-zinc-900 hover:bg-zinc-800 transition-colors animate-pulse"
-            >
-              <RefreshCw size={20} className="text-emerald-500 animate-spin" />
-            </button>
-          )}
         </div>
       </nav>
 
@@ -497,32 +406,29 @@ function App() {
                 className="w-full h-10 pl-10 pr-4 bg-zinc-900/50 border border-zinc-800/50 rounded-lg text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    handleSearch();
+                  }
+                }}
                 autoFocus
               />
             </div>
+            <button
+              onClick={handleSearch}
+              className="h-10 rounded-lg bg-primary px-4 text-sm font-medium text-white hover:bg-primary/90 transition-colors whitespace-nowrap shrink-0"
+            >
+              {t.searchAction}
+            </button>
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={toggleLanguage}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-colors"
-            >
-              <Languages size={14} /> {t.languageToggle}
-            </button>
             {view === "installed" && (
               <button
                 onClick={handleCheckUpdate}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-colors"
               >
                 <RefreshCw size={14} /> {t.checkUpdates}
-              </button>
-            )}
-            {view === "search" && (searchLogs.length > 0 || searchStatus === "error") && (
-              <button
-                onClick={() => setShowLog(true)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-colors"
-              >
-                <Terminal size={14} /> {t.logs}
               </button>
             )}
           </div>
@@ -538,7 +444,6 @@ function App() {
                 exit={{ opacity: 0, x: 20 }}
                 className="space-y-6"
               >
-                <CommandPreview label={t.searchCommand} command={searchCommand} />
 
                 {searchStatus === "error" && (
                   <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center gap-3 text-sm">
@@ -566,7 +471,7 @@ function App() {
                             {history.map((item) => (
                               <button
                                 key={item}
-                                onClick={() => setSearchQuery(item)}
+                                onClick={() => { setSearchQuery(item); setSubmittedQuery(item); }}
                                 className="px-3 py-1 rounded-full bg-zinc-900/50 border border-zinc-800 text-xs hover:border-zinc-700 hover:text-zinc-300 transition-colors"
                               >
                                 {item}
@@ -597,12 +502,6 @@ function App() {
                   >
                     <Download size={14} /> {t.updateAll}
                   </button>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                  <CommandPreview label={t.listCommand} command={listCommand} />
-                  <CommandPreview label={t.checkCommand} command={checkCommand} />
-                  <CommandPreview label={t.updateCommand} command={updateCommand} />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -671,7 +570,6 @@ function App() {
 
                     {updateOutput && (
                       <div className="mt-6 pt-6 border-t border-zinc-800/50 space-y-4">
-                        <CommandPreview label={t.executedCheck} command={checkCommand} />
                         <div>
                           <div className="text-sm font-medium text-zinc-300 mb-2">{t.updateResult}</div>
                           <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 font-mono text-xs text-zinc-400 whitespace-pre-wrap max-h-40 overflow-y-auto">
@@ -710,9 +608,6 @@ function App() {
               </div>
 
               <div className="p-6 overflow-y-auto flex-1 space-y-6">
-                <CommandPreview label={t.subSkillDiscovery} command={selectedListCommand} />
-                <CommandPreview label={t.installCommand} command={selectedInstallCommand} />
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div
                     className={cn(
@@ -859,44 +754,6 @@ function App() {
               </div>
             </motion.div>
           </div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showLog && (
-          <motion.div
-            initial={{ opacity: 0, y: "100%" }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: "100%" }}
-            className="fixed bottom-0 left-0 right-0 h-80 bg-zinc-950 border-t border-zinc-800 shadow-2xl z-40 flex flex-col"
-          >
-            <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 border-b border-zinc-800">
-              <div className="flex items-center gap-2">
-                <Terminal size={16} className="text-zinc-400" />
-                <span className="text-xs font-mono text-zinc-400">{logTitle}</span>
-              </div>
-              <button onClick={() => setShowLog(false)} className="text-zinc-500 hover:text-zinc-300">
-                <XCircle size={16} />
-              </button>
-            </div>
-            {logCommand && (
-              <div className="border-b border-zinc-800 px-4 py-3 bg-zinc-950/60">
-                <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-500 mb-2">{t.runningCommand}</div>
-                <div className="font-mono text-xs text-zinc-300 break-all">{logCommand}</div>
-              </div>
-            )}
-            <div className="flex-1 overflow-auto p-4 font-mono text-xs text-zinc-300 space-y-1">
-              {logLines.length > 0 ? (
-                logLines.map((line, index) => (
-                  <div key={index} className="opacity-90">
-                    {line}
-                  </div>
-                ))
-              ) : (
-                <div className="text-zinc-600">{t.waitingLogs}</div>
-              )}
-            </div>
-          </motion.div>
         )}
       </AnimatePresence>
     </div>

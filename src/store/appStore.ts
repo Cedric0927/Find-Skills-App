@@ -12,8 +12,8 @@ export type Settings = {
 
 export type InstalledCacheItem = {
   name: string;
-  version: string;
-  install_date: string;
+  path: string;
+  agents: string;
 };
 
 export type SkillResult = {
