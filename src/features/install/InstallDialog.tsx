@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, CheckSquare, Download, Globe, Layers, XCircle } from "lucide-react";
+import { CheckCircle2, CheckSquare, ChevronDown, ChevronUp, Download, Globe, Layers, XCircle } from "lucide-react";
 import { ProjectFolderSelector } from "../../components/ProjectFolderSelector";
 import { formatSkillLabel } from "../../lib/skills";
 import { cn } from "../../lib/utils";
@@ -46,6 +47,14 @@ export function InstallDialog({
   onProjectBlur,
   onUpdateConfig,
 }: InstallDialogProps) {
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+
+  useEffect(() => {
+    if (config.copyMode || config.fullDepth) {
+      setShowAdvancedOptions(true);
+    }
+  }, [config.copyMode, config.fullDepth]);
+
   return (
     <AnimatePresence>
       {open && selectedSkill && (
@@ -131,29 +140,6 @@ export function InstallDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div
-                  className={cn(
-                    "p-4 rounded-xl border cursor-pointer transition-all",
-                    config.copyMode ? "border-primary/50 bg-primary/5" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700",
-                  )}
-                  onClick={() => void onUpdateConfig({ copyMode: !config.copyMode })}
-                >
-                  <div className="font-medium text-sm">{t.copyMode}</div>
-                  <div className="text-xs text-zinc-500 mt-1">{t.copyModeHint}</div>
-                </div>
-                <div
-                  className={cn(
-                    "p-4 rounded-xl border cursor-pointer transition-all",
-                    config.fullDepth ? "border-primary/50 bg-primary/5" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700",
-                  )}
-                  onClick={() => void onUpdateConfig({ fullDepth: !config.fullDepth })}
-                >
-                  <div className="font-medium text-sm">{t.fullDepth}</div>
-                  <div className="text-xs text-zinc-500 mt-1">{t.fullDepthHint}</div>
-                </div>
-              </div>
-
               <div>
                 <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 block">{t.targetAgents}</label>
                 <div className="space-y-4 max-h-64 overflow-y-auto pr-1">
@@ -195,6 +181,46 @@ export function InstallDialog({
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-800 bg-zinc-950/40">
+                <button
+                  onClick={() => setShowAdvancedOptions((value) => !value)}
+                  className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-zinc-900/50 transition-colors rounded-xl"
+                >
+                  <div>
+                    <div className="font-medium text-sm text-zinc-200">{t.advancedOptions}</div>
+                    <div className="text-xs text-zinc-500 mt-1">{t.advancedOptionsHint}</div>
+                  </div>
+                  <div className="text-xs text-zinc-400 flex items-center gap-1.5">
+                    {showAdvancedOptions ? t.hideAdvanced : t.showAdvanced}
+                    {showAdvancedOptions ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </div>
+                </button>
+                {showAdvancedOptions && (
+                  <div className="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div
+                      className={cn(
+                        "p-4 rounded-xl border cursor-pointer transition-all",
+                        config.copyMode ? "border-primary/50 bg-primary/5" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700",
+                      )}
+                      onClick={() => void onUpdateConfig({ copyMode: !config.copyMode })}
+                    >
+                      <div className="font-medium text-sm">{t.copyMode}</div>
+                      <div className="text-xs text-zinc-500 mt-1">{t.copyModeHint}</div>
+                    </div>
+                    <div
+                      className={cn(
+                        "p-4 rounded-xl border cursor-pointer transition-all",
+                        config.fullDepth ? "border-primary/50 bg-primary/5" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700",
+                      )}
+                      onClick={() => void onUpdateConfig({ fullDepth: !config.fullDepth })}
+                    >
+                      <div className="font-medium text-sm">{t.fullDepth}</div>
+                      <div className="text-xs text-zinc-500 mt-1">{t.fullDepthHint}</div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {!config.allMode && (

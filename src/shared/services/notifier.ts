@@ -7,5 +7,7 @@ export async function notify(title: string, body: string) {
   }
   if (granted) {
     sendNotification({ title, body });
+    return;
   }
+  window.alert(`${title}\n${body}`);
 }

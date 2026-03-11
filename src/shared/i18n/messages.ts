@@ -16,6 +16,10 @@ export type AppI18n = {
   globalInstallHint: string;
   installAll: string;
   installAllHint: string;
+  advancedOptions: string;
+  advancedOptionsHint: string;
+  showAdvanced: string;
+  hideAdvanced: string;
   copyMode: string;
   copyModeHint: string;
   fullDepth: string;
@@ -61,6 +65,10 @@ export const messages: Record<Language, AppI18n> = {
     globalInstallHint: "为所有项目安装",
     installAll: "安装全部",
     installAllHint: "包含所有子技能，不会自动选择全部 Agent",
+    advancedOptions: "高级选项",
+    advancedOptionsHint: "面向少数高级场景，默认不启用",
+    showAdvanced: "展开",
+    hideAdvanced: "收起",
     copyMode: "复制模式",
     copyModeHint: "对应 --copy，复制文件而不是软链接",
     fullDepth: "深度扫描",
@@ -104,6 +112,10 @@ export const messages: Record<Language, AppI18n> = {
     globalInstallHint: "Install for all projects",
     installAll: "Install All",
     installAllHint: "Include all sub-skills without auto-selecting all agents",
+    advancedOptions: "Advanced Options",
+    advancedOptionsHint: "For advanced scenarios and disabled by default",
+    showAdvanced: "Show",
+    hideAdvanced: "Hide",
     copyMode: "Copy Mode",
     copyModeHint: "Maps to --copy and copies files instead of symlinks",
     fullDepth: "Deep Scan",
