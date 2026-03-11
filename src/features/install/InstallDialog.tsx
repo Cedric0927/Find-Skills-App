@@ -168,7 +168,7 @@ export function InstallDialog({
                             const agents = allSelected
                               ? config.agents.filter((agent) => !categoryAgents.includes(agent))
                               : [...new Set([...config.agents, ...categoryAgents])];
-                            void onUpdateConfig({ agents, allMode: false });
+                            void onUpdateConfig({ agents });
                           }}
                           className="text-[11px] text-zinc-500 hover:text-primary transition-colors"
                         >

@@ -87,7 +87,7 @@ const defaultInstallConfig: InstallConfig = {
   skills: [],
   copyMode: false,
   fullDepth: false,
-  allMode: false,
+  allMode: true,
 };
 
 export const useAppStore = create<AppState>((set, get) => ({

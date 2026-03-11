@@ -43,7 +43,7 @@ export function useInstallFlow(t: AppI18n) {
   const toggleAgent = (agent: string) => {
     const exists = installConfig.agents.includes(agent);
     const agents = exists ? installConfig.agents.filter((item) => item !== agent) : [...installConfig.agents, agent];
-    void updateInstallConfig({ agents, allMode: false });
+    void updateInstallConfig({ agents });
   };
 
   const toggleSkill = (skill: string) => {
