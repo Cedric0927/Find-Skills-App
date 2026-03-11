@@ -49,6 +49,7 @@ export type AppState = {
   settings: Settings;
   installConfig: InstallConfig;
   history: string[];
+  projectHistory: string[];
   installed_cache: InstalledCacheItem[];
   searchQuery: string;
   searchStatus: "idle" | "loading" | "error";
@@ -60,6 +61,7 @@ export type AppState = {
   updateSettings: (partial: Partial<Settings>) => Promise<void>;
   updateInstallConfig: (partial: Partial<InstallConfig>) => Promise<void>;
   addHistory: (query: string) => Promise<void>;
+  addProjectHistory: (path: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
   setSearchResults: (results: SkillResult[]) => void;
   setSearchStatus: (status: AppState["searchStatus"], error?: string) => void;
@@ -92,6 +94,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   settings: defaultSettings,
   installConfig: defaultInstallConfig,
   history: [],
+  projectHistory: [],
   installed_cache: [],
   searchQuery: "",
   searchStatus: "idle",
@@ -105,16 +108,35 @@ export const useAppStore = create<AppState>((set, get) => ({
       isGlobal: settings.is_global,
       ...((await store.get<InstallConfig>("install_config")) ?? {}),
     };
-    const history = (await store.get<string[]>("history")) ?? [];
+    const rawHistory = (await store.get<string[]>("history")) ?? [];
+    // Case-insensitive deduplication for history
+    const seen = new Set<string>();
+    const history = rawHistory.filter((item) => {
+      const lower = item.toLowerCase();
+      if (seen.has(lower)) return false;
+      seen.add(lower);
+      return true;
+    });
+
+    const rawProjectHistory = (await store.get<string[]>("project_history")) ?? [];
+    const seenProject = new Set<string>();
+    const projectHistory = rawProjectHistory.filter((item) => {
+      const lower = item.toLowerCase();
+      if (seenProject.has(lower)) return false;
+      seenProject.add(lower);
+      return true;
+    });
+
     const installed_cache = (await store.get<InstalledCacheItem[]>("installed_cache")) ?? [];
-    set({ settings, installConfig, history, installed_cache });
+    set({ settings, installConfig, history, projectHistory, installed_cache });
   },
   saveConfig: async () => {
     const store = await storePromise;
-    const { settings, installConfig, history, installed_cache } = get();
+    const { settings, installConfig, history, projectHistory, installed_cache } = get();
     await store.set("settings", settings);
     await store.set("install_config", installConfig);
     await store.set("history", history);
+    await store.set("project_history", projectHistory);
     await store.set("installed_cache", installed_cache);
     await store.save();
   },
@@ -136,9 +158,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     const store = await storePromise;
     const trimmed = query.trim();
     if (!trimmed) return;
-    const history = [trimmed, ...get().history.filter((item) => item !== trimmed)].slice(0, 10);
+    const current = get().history;
+    const history = [trimmed, ...current.filter((item) => item.toLowerCase() !== trimmed.toLowerCase())].slice(0, 10);
     set({ history });
     await store.set("history", history);
+    await store.save();
+  },
+  addProjectHistory: async (path) => {
+    const store = await storePromise;
+    const trimmed = path.trim();
+    if (!trimmed) return;
+    const current = get().projectHistory;
+    const projectHistory = [trimmed, ...current.filter((item) => item.toLowerCase() !== trimmed.toLowerCase())].slice(0, 5);
+    set({ projectHistory });
+    await store.set("project_history", projectHistory);
     await store.save();
   },
   setSearchQuery: (query) => set({ searchQuery: query }),

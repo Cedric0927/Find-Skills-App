@@ -207,9 +207,13 @@ export function parseSkillsListOutput(output: string) {
       .replace(/\s+/g, " ")
       .trim();
 
+  const isNoDataLine = (line: string) =>
+    /^(no|not)\b/i.test(line) &&
+    /(skill|skills|installed|found|available|matched|matches|in\s+path)/i.test(line);
+
   for (const rawLine of lines) {
     const line = cleanLine(rawLine);
-    if (/^global skills$/i.test(line)) {
+    if (/^global skills$/i.test(line) || /^project skills$/i.test(line) || isNoDataLine(line)) {
       continue;
     }
 

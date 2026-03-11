@@ -366,13 +366,13 @@ async fn execute_npx_skills_add_list(source: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn execute_npx_skills_list(is_global: bool) -> Result<String, String> {
+async fn execute_npx_skills_list(is_global: bool, current_dir: Option<String>) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let mut args = vec!["skills".into(), "list".into()];
         if is_global {
             args.push("-g".into());
         }
-        run_command_output(&args, &None)
+        run_command_output(&args, &current_dir)
     })
     .await
     .map_err(|error| error.to_string())?
