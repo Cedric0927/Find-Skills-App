@@ -516,6 +516,7 @@ pub fn run() {
             let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &hide, &quit])?;
             TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .on_menu_event(move |app: &AppHandle, event: MenuEvent| match event.id().as_ref() {
                     "show" => {
