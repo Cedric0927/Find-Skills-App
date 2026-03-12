@@ -7,6 +7,7 @@
 市面上有很多技能网站，但是我依然觉得“不够好用”，"不够方便“
 所以这款Find Skill App诞生了，用最简单的方式给你的智能体安装技能。
 
+技能源完全来自于[skills.sh](https://skills.sh)
 求求了，给孩子一个star吧~我会继续完善这个项目的。
 
 ![应用预览图](./docs/assets/preview.png)
@@ -18,6 +19,18 @@
 - 已安装管理：查看并刷新已安装 Skills
 - 更新能力：检查更新并执行批量更新
 - 中英文界面：内置中英文本地化文案
+
+![搜索预览](./docs/assets/search.png)
+## 支持的智能体
+
+Find Skill App 支持将技能一键同步至以下主流 AI 智能体与编辑器：
+
+- **AI 原生 IDE**: Cursor, Windsurf, Trae, Antigravity
+- **命令行智能体 (CLI)**: Claude Code, Codex, Gemini, Amp, Kiro-CLI, Kilo, OpenCode
+- **编辑器插件 / 助手**: GitHub Copilot, Continue, Roo Code, Aider, Goose
+- **自主代理 / 数字员工**: Clawdbot, Droid
+
+![下载按钮](./docs/assets/download.png)
 
 ## 技术栈
 
@@ -91,6 +104,15 @@ I will continue to improve this project.
 - Installed Management: view and refresh installed skills
 - Update Flow: check for updates and perform batch updates
 - Bilingual UI: built-in Chinese and English localization
+
+### Supported Agents
+
+Find Skill App supports syncing skills to the following popular AI agents and editors:
+
+- **AI-Native IDEs**: Cursor, Windsurf, Trae, Antigravity
+- **CLI Agents**: Claude Code, Codex, Gemini, Amp, Kiro-CLI, Kilo, OpenCode
+- **Editor Plugins & Assistants**: GitHub Copilot, Continue, Roo Code, Aider, Goose
+- **Autonomous Agents**: Clawdbot, Droid
 
 ### Tech Stack
 
