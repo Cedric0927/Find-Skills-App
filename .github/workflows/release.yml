@@ -53,7 +53,17 @@ jobs:
       - name: build frontend
         run: pnpm build
 
+      - name: prepare release artifacts (windows only)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          # The binary is built during tauri-action, but we can't easily get it after tauri-action 
+          # because tauri-action might clean up or be the last step.
+          # Actually, tauri-action *runs* the build. We can use include-binary or just upload after.
+          echo "Building with tauri-action..."
+
       - uses: tauri-apps/tauri-action@v0
+        id: tauri_build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -64,3 +74,13 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
           projectPath: "."
+
+      - name: upload standalone binary (windows only)
+        if: matrix.platform == 'windows-latest'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            src-tauri/target/release/Find Skills.exe
+          tag_name: v0.1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
