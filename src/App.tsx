@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Package, RefreshCw, Search, Terminal } from "lucide-react";
+import { Languages, Package, RefreshCw, Search, Terminal } from "lucide-react";
 import { useAppStore } from "./store/appStore";
 import { messages } from "./shared/i18n/messages";
 import { SidebarItem } from "./shared/components/SidebarItem";
@@ -16,7 +16,7 @@ import { skillsClient } from "./shared/services/skillsClient";
 type ViewMode = "search" | "installed";
 
 function App() {
-  const { settings, loadConfig, upsertInstallJob } = useAppStore();
+  const { settings, updateSettings, loadConfig, upsertInstallJob } = useAppStore();
   const t = messages[settings.language];
   const [view, setView] = useState<ViewMode>("search");
   const [updateOutput, setUpdateOutput] = useState("");
@@ -99,6 +99,15 @@ function App() {
               void refreshInstalledSkills(installedScope);
             }}
             label={t.installed}
+          />
+        </div>
+
+        <div className="mt-auto w-full px-2">
+          <SidebarItem
+            icon={Languages}
+            active={false}
+            onClick={() => void updateSettings({ language: settings.language === "zh" ? "en" : "zh" })}
+            label={settings.language === "zh" ? "English" : "中文"}
           />
         </div>
       </nav>
