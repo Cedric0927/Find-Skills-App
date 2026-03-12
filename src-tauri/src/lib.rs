@@ -10,6 +10,16 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, Window};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
+#[cfg(target_os = "windows")]
+fn apply_no_window(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(target_os = "windows"))]
+fn apply_no_window(_command: &mut Command) {}
+
 fn sanitize_input(input: &str) -> String {
     input
         .chars()
@@ -174,6 +184,7 @@ fn command_output(name: &str, args: &[String], current_dir: &Option<String>) -> 
     } else {
         Command::new(name)
     };
+    apply_no_window(&mut command);
     apply_current_dir(&mut command, current_dir);
     command.args(args).output()
 }
@@ -184,6 +195,7 @@ fn command_spawn(name: &str, args: &[String], current_dir: &Option<String>) -> R
     } else {
         Command::new(name)
     };
+    apply_no_window(&mut command);
     apply_current_dir(&mut command, current_dir);
     command.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
     command.spawn()
@@ -461,7 +473,9 @@ if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
   Write-Output $dialog.SelectedPath
 }"#;
     tauri::async_runtime::spawn_blocking(move || {
-        let output = Command::new("powershell")
+        let mut command = Command::new("powershell");
+        apply_no_window(&mut command);
+        let output = command
             .args(["-NoProfile", "-STA", "-Command", script])
             .output()
             .map_err(|error| error.to_string())?;
